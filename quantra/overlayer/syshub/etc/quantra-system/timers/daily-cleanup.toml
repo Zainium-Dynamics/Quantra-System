@@ -1,0 +1,22 @@
+# ── Zainium OS Timer Definition
+# Purpose: Automated System Maintenance & Cleanup
+# Trigger: Daily at 03:00:00 (Local Time)
+
+[timer]
+name = "daily-cleanup"
+description = "Daily maintenance for log rotation and temp file cleanup"
+
+# The service unit this timer will trigger
+unit = "cleanup"
+
+# Schedule: [YYYY-MM-DD] HH:MM:SS
+on_calendar = "03:00:00"
+
+# If the system was off during 3 AM, run it immediately after boot
+persistent = true
+
+# ── Accuracy & Jitter 
+randomized_delay_sec = 10
+
+# ── Dependencies
+after = ["basic-ready"]

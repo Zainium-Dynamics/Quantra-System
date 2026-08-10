@@ -1,0 +1,41 @@
+[workspace]
+members = [
+    "quantra",
+    "quantra-ctl",
+    "quantra-ramfs",
+    "quantra-net/quantra-net",
+    "quantra-net/quantra-netd",
+    "quantra-net/common",
+    "quantra-logind",
+]
+resolver = "2"
+
+# ── Shared package metadata 
+[workspace.package]
+version       = "6.0.0"
+edition       = "2024"
+license       = "MIT"
+rust-version  = "1.97"
+authors       = ["Ali-Zain <alizain@zainiumdynamics.tech>"]
+description   = "Zainium OS Core Engine - Init & Network Stack"
+
+#  Shared dependency versions (absorbed from quantra-net)
+[workspace.dependencies]
+tokio        = { version = "1",   features = ["full"] }
+serde        = { version = "1",   features = ["derive"] }
+serde_json   = "1"
+thiserror    = "1"
+anyhow       = "1"
+futures      = "0.3"
+tracing      = "0.1"
+serde_yaml   = "0.9"
+async-trait  = "0.1"
+once_cell    = "1"
+
+# ── Stealth/Static Execution Optimizations
+[profile.release]
+panic         = "abort"
+opt-level     = "z"
+lto           = "fat"
+codegen-units = 1
+strip         = true

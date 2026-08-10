@@ -1,0 +1,122 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Quantra Service Definition — Complete Reference Example
+#
+# Place in: /overlayer/syshub/etc/quantra-system/services/<service_name>.toml
+# Enable auto-start: quantra-ctl enable <service_name>
+#          (creates /overlayer/syshub/etc/quantra-system/enabled/<service_name> marker file)
+#
+# Documentation: https://github.com/zainium-os/quantra
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Identity ──────────────────────────────────────────────────────────────────
+
+name = "my-service"
+description = "My example service daemon"
+command = "/overlayer/syshub/sbin/my-service"
+args = ["--config", "/etc/my-service/config.toml", "--foreground"]
+user = "my-service"
+group = "my-service"
+working_dir = "/var/lib/my-service"
+
+# ── Process type ──────────────────────────────────────────────────────────────
+
+oneshot = false
+console = false
+launcher = false
+
+# ── Readiness notification ────────────────────────────────────────────────────
+
+# Options: "simple" | "notify" (sd_notify) | "bg-process" (pid_file)
+notify_type = "simple"
+# pid_file = "/run/my-service/my-service.pid"
+# ready_socket = "/run/my-service/control.sock"
+
+# ── Watchdog ──────────────────────────────────────────────────────────────────
+
+watchdog_sec = 30
+
+# ── Stop / Reload ─────────────────────────────────────────────────────────────
+
+reload_signal = "SIGHUP"
+# stop_command = "/overlayer/syshub/lib/my-service/stop.sh"
+# reload_command = "/overlayer/syshub/sbin/nginx -s reload"
+
+# ── Chain / Pipeline ──────────────────────────────────────────────────────────
+
+# chain_to = "my-service-next"
+# chain_to_always = false
+
+# ── Environment ───────────────────────────────────────────────────────────────
+
+env_file = "/etc/default/my-service"
+
+[environment]
+RUST_LOG = "info"
+MY_SERVICE_PORT = "8080"
+MY_SERVICE_MODE = "production"
+
+# ── Resource Limits ───────────────────────────────────────────────────────────
+
+[rlimit]
+nofile = [4096, 8192]
+nproc = [128, 256]
+fsize = [0, 0]
+stack = [8388608, 0]
+memlock = [65536, 131072]
+core = [0, 0]
+
+# ── Security ──────────────────────────────────────────────────────────────────
+
+no_new_privileges = true
+non_dumpable = true
+clear_ambient_caps = false
+drop_capabilities = ["CAP_SYS_BOOT", "CAP_SYSLOG"]
+seccomp = "off"
+# seccomp_profile = "network-daemon"
+# apparmor_profile = "my-service"
+
+# ── Restart policy ────────────────────────────────────────────────────────────
+
+# Options: "no" | "on-failure" | "always"
+restart = "on-failure"
+restart_sec = 5
+max_restarts = 5
+restart_interval_sec = 60
+
+# ── Timeouts ──────────────────────────────────────────────────────────────────
+
+timeout_start = 90
+timeout_stop = 30
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+
+dependencies = ["quantra-netd"]
+wants = ["bluetooth"]
+milestone = ["wifi", "printer-service"]
+after = ["quantra-net"]
+
+# ── Socket activation ─────────────────────────────────────────────────────────
+
+# socket_listen = ["unix:/run/my-service.sock", "tcp:0.0.0.0:8080"]
+
+# ── cgroup v2 Resource Controls ───────────────────────────────────────────────
+
+# [cgroup_config]
+# memory_limit = "512M"
+# cpu_weight   = 100
+# io_weight    = 100
+
+# ── Conditional Dependencies ──────────────────────────────────────────────────
+
+# [conditional_dependencies]
+# bluetooth = "hardware-present:/sys/class/bluetooth"
+# wifi      = "hardware-present:/sys/class/net/wlan0"
+
+# ── Healthcheck (Docker-style) ────────────────────────────────────────────────
+
+# [healthcheck]
+# command           = "/overlayer/syshub/lib/my-service/health.sh"
+# args              = ["--timeout", "3"]
+# interval_sec      = 10
+# failure_threshold = 3
+# timeout_sec       = 5

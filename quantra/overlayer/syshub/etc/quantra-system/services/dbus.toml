@@ -1,0 +1,41 @@
+# ── system D-Bus — dbus-daemon (no systemd, no dbus-broker required) ─────────
+# Binary: /overlayer/syshub/bin/dbus-daemon
+# Socket: /run/dbus/system_bus_socket  (baked into libdbus with correct prefix)
+# Must start before quantra-logind (login1) and anything on the system bus.
+
+name = "dbus"
+description = "System message bus (dbus-daemon --system)"
+command = "/overlayer/syshub/bin/dbus-daemon --system --nofork --nopidfile"
+# --nofork: Quantra tracks the process; --nopidfile: we use notify/simple
+
+user = "root"
+group = "root"
+working_dir = "/"
+# After drop-in system.conf, daemon re-execs as messagebus where configured.
+
+notify_type = "simple"
+oneshot = false
+console = false
+
+restart = "on-failure"
+restart_sec = 2
+timeout_start = 15
+timeout_stop = 10
+max_restarts = 10
+restart_interval_sec = 60
+
+# Ordering: dependents declare after = ["dbus"] (logind, greeter, …)
+milestone = ["dbus-ready"]
+
+no_new_privileges = false
+non_dumpable = false
+seccomp = "off"
+
+# Create runtime dir before start (tmpfs /run)
+exec_start_pre = [
+  "mkdir -p /run/dbus",
+  "sh -c 'chown messagebus:messagebus /run/dbus 2>/dev/null || true'",
+]
+
+[environment]
+PATH = "/overlayer/syshub/bin:/overlayer/syshub/sbin:/overlayer/syshub/engine:/bin:/sbin"

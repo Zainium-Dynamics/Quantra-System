@@ -1,0 +1,19 @@
+[package]
+name = "quantra-ramfs"
+version = "6.0.0"
+edition = "2024"
+rust-version = "1.87"
+license = "MIT"
+authors = ["Ali Zain <alizain.x404@gmail.com>"]
+description = "Stage-1 early userspace boot orchestrator for Zainium OS. dm-verity, TPM2 unseal, measured boot, netlink udev, fsck, Btrfs subvol, rd.break, LUKS+TPM2."
+
+
+[[bin]]
+name = "quantra-ramfs"
+path = "src/main.rs"
+
+[dependencies]
+# POSIX system call bindings — aligned with main quantra crate (=0.29.0)
+nix  = { version = "=0.29.0", features = ["fs", "mount", "process", "signal"] }
+# C stdlib bindings — needed for raw loop ioctls (LOOP_CTL_GET_FREE, LOOP_SET_FD, mknod)
+libc = "=0.2.155"

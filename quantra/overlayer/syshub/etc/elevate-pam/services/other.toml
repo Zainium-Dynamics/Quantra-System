@@ -1,0 +1,22 @@
+# Default / fallback service stack.
+# Install as: /etc/elevate-pam/services/other.toml
+
+[service]
+name = "other"
+description = "Default deny-with-unix fallback (customize per site policy)"
+
+[[auth]]
+control = "required"
+module = "unix"
+
+[[account]]
+control = "required"
+module = "unix"
+
+[[password]]
+control = "required"
+module = "unix"
+
+[[session]]
+control = "required"
+module = "unix"

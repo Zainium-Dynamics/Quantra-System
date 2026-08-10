@@ -1,0 +1,16 @@
+/target/
+**/target/
+Cargo.lock.bak
+*.log
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+.claude/settings.local.json
+
+# Working notes about other, unrelated projects (zex, patchelf-rs) that
+# happen to live in this directory -- not quantra-system content.
+/next.md
+/patchelf-rs-plan.md

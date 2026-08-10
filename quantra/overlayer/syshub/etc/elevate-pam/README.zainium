@@ -1,0 +1,9 @@
+# elevate-pam on Zainium OS
+#
+# Classic Linux /etc/pam.d is NOT used.
+# Auth stacks:  etc/elevate-pam/services/*.toml
+# Password:     elevate-crypto (Argon2id) via module "unix"
+# Privilege:    /bin/elevate  (elevate-sudo)
+# Sessions:     quantra-logind  /run/quantra-logind/control  + login1 D-Bus
+#
+# Do not install or write pam.d files.

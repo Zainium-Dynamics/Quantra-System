@@ -1,0 +1,31 @@
+name: Seccomp Profile Guards
+
+on:
+  pull_request:
+    paths:
+      - "zai-netd/src/main.rs"
+      - ".github/workflows/seccomp-profile-guards.yml"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "zai-netd/src/main.rs"
+      - ".github/workflows/seccomp-profile-guards.yml"
+  workflow_dispatch:
+
+jobs:
+  expected-profile-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Run expected seccomp profile test
+        run: cargo test -p zai-netd tests::expected_init_seccomp_profile_is_network_daemon

@@ -1,0 +1,3 @@
+# WireGuard/OpenVPN profiles — managed via quantra-net vpn create <name>
+# Permissions: 0o600 (enforced by quantra-netd)
+

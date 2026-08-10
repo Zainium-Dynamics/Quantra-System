@@ -1,0 +1,28 @@
+[workspace]
+members = ["common", "quantra-netd", "quantra-net"]
+resolver = "2"
+
+[workspace.package]
+version     = "6.0.0"
+edition     = "2024"
+license     = "MIT"
+authors     = ["Ali Zain <alizain.x404@gmail.com>"]
+
+[workspace.dependencies]
+anyhow       = "=1.0.86"
+libc         = "=0.2.155"
+log          = { version = "=0.4.21", features = ["std"] }
+nix          = { version = "=0.29.0", features = ["fs","process","signal","socket","user","resource"] }
+serde        = { version = "=1.0.200", features = ["derive"] }
+serde_json   = "=1.0.117"
+serde_yaml   = "0.9"
+thiserror    = "=1.0.59"
+toml         = "=0.8.8"
+tokio        = { version = "1", features = ["full"] }
+rtnetlink    = "0.13"
+futures      = "0.3"
+tracing      = "0.1"
+indexmap     = "=2.6.0"
+async-trait  = "0.1"
+once_cell    = "1"
+clap         = { version = "=4.5.23", features = ["derive","color"] }

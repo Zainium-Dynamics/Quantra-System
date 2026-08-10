@@ -1,0 +1,56 @@
+[package]
+name = "quantra"
+version = "6.0.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+authors = ["Ali Zain <alizain.x404@gmail.com>"]
+description = "A hyper-optimized, zero-dependency native PID 1 initialization engine for Zainium OS, engineered for bare-metal sub-100ms boot times."
+keywords = ["init", "pid1", "zainium", "os-dev", "systems"]
+categories = ["os", "system-programming"]
+repository = "https://github.com/zainium/quantra"
+
+
+# overflow-checks intentionally kept at default (true) — PID 1 must not have
+# silent integer wraparound in mount flag computation, buffer sizing, or PID arithmetic.
+
+[[bin]]
+name = "quantra"
+path = "src/main.rs"
+
+[dependencies]
+# Error handling (widely audited, zero CVE history)
+anyhow = "=1.0.86"
+# C standard library bindings (core dependency)
+libc = "=0.2.155"
+# Structured logging — std feature enables set_boxed_logger and heap-backed logger registration
+log = { version = "=0.4.21", features = ["std"] }
+# POSIX system call bindings (actively maintained, no CVEs)
+nix = { version = "=0.29.0", features = [
+    "fs",
+    "hostname",
+    "mount",
+    "process",
+    "reboot",
+    "resource",
+    "sched",
+    "signal",
+    "socket",
+    "term",
+    "user",
+] }
+# Serialization framework (stable, audited)
+serde = { version = "=1.0.200", features = ["derive"] }
+# JSON serialization for control socket protocol (pinned, stable on Rust 1.82)
+serde_json = "=1.0.117"
+# Custom error types (lightweight, pure Rust)
+thiserror = "=1.0.59"
+# Service config parsing (TOML format)
+toml = "=0.8.8"
+# Force indexmap to pre-edition2024 version (2.14+ requires Rust 1.85+)
+indexmap = "=2.6.0"
+# Native environment resolver (library only, no clap/CLI deps) — the one
+# schema behind PID 1's boot env; also readable via the `oxidized-environment`
+# CLI by quantra-ctl, zainium-installer, and zex without linking Rust. See
+# oxidized-environment-core's docs for why this replaced /etc/profile.d.
+oxidized-environment-core = { path = "../../oxidized-environment/crates/oxidized-environment-core" }

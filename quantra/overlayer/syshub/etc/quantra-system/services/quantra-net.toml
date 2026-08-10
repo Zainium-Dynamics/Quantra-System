@@ -1,0 +1,26 @@
+# ── quantra-net setup — oneshot client (applies saved network config) ─────────
+# Runs once after quantra-netd is up (bootstrap lane).
+
+name = "quantra-net"
+description = "Zainium network setup client (oneshot after quantra-netd)"
+command = "/overlayer/syshub/bin/quantra-net"
+args = ["setup"]
+
+oneshot = true
+console = false
+notify_type = "simple"
+working_dir = "/"
+
+restart = "no"
+timeout_start = 60
+timeout_stop = 10
+
+after = ["quantra-netd"]
+dependencies = ["quantra-netd"]
+
+no_new_privileges = true
+non_dumpable = true
+seccomp = "off"
+
+[environment]
+PATH = "/overlayer/syshub/bin:/overlayer/syshub/sbin:/overlayer/syshub/engine:/bin:/sbin"
