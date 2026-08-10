@@ -1,0 +1,23 @@
+# ── Quantra Phase 5 Network Configuration ────────────────────────────────────
+# Path: /overlayer/syshub/etc/quantra-system/network.toml
+# Applied by quantra during boot (Phase 5: network::configure_all)
+
+hostname = "zainium"
+
+# Loopback — always required
+[[interface]]
+name = "lo"
+method = "loopback"
+
+# Primary Ethernet — DHCP
+[[interface]]
+name = "eth0"
+method = "dhcp"
+
+# Example: Static IP (uncomment to use)
+# [[interface]]
+# name = "eth1"
+# method = "static"
+# address = "192.168.1.100/24"
+# gateway = "192.168.1.1"
+# dns = ["8.8.8.8", "8.8.4.4"]

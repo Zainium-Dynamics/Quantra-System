@@ -1,0 +1,22 @@
+# Quantra Init — System Configuration
+# Deploy to: /overlayer/syshub/etc/quantra-system/init.toml
+
+[logging]
+level          = "info"
+file           = "/var/log/quantra-system/init.log"
+console_output = true
+format         = "plain"   # "plain" or "json"
+
+services_dir = "/overlayer/syshub/etc/quantra-system/services"
+enabled_dir  = "/overlayer/syshub/etc/quantra-system/enabled"
+hostname     = "zainium"
+
+strict_service_validation = false
+
+[system]
+max_open_files = 65535
+oom_score_adj  = -1000
+
+[features]
+cgroups_support = true
+vt_support      = true

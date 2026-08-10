@@ -1,0 +1,25 @@
+[package]
+name        = "quantra-ctl"
+version     = "6.0.0"
+edition     = "2024"
+rust-version = "1.97"
+license     = "MIT"
+description = "Zainium OS service controller — talks directly to PID 1 control socket"
+authors     = ["Ali Zain <alizain.x404@gmail.com>"]
+
+[[bin]]
+name = "quantra-ctl"
+path = "src/main.rs"
+
+[dependencies]
+anyhow     = "=1.0.86"
+clap       = { version = "=4.5.23", features = ["derive", "color", "env"] }
+serde      = { version = "=1.0.200", features = ["derive"] }
+serde_json = "=1.0.117"
+# `quantra-ctl env` — resolve environment.toml straight from disk, same
+# schema PID 1 uses at boot. quantra-ctl already pulls clap in for itself,
+# so linking the -core crate (not the CLI one) is the only concern here.
+oxidized-environment-core = { git = "https://github.com/Zainium-Dynamics/oxidized-environment.git", rev = "ffa2c5b" }
+
+# .cargo/config.toml sets target = x86_64-zainium-linux-musl
+# For native check: cargo check --target x86_64-unknown-linux-gnu

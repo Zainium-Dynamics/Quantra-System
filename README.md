@@ -1,94 +1,99 @@
-# Quantra-System
+# Quantra System
 
-> An ultra-fast, memory-safe, 100% Rust init system (PID 1), initramfs, and network stack. Features Kernel Lockdown, Landlock LSM, native healthchecks, and static execution.
+Core boot + service + session + network stack for **Zainium OS** — a Rust
+init system (PID 1), initramfs, session/login manager, and network daemon,
+purpose-built for Zainium's non-FHS `/overlayer` root layout.
 
-**Author:** Ali Zain <alizain.arch@gmail.com>  
-**Version:** 5.0.1  
-**Language:** Rust (100% Memory Safe)  
-**Target:** x86_64-unknown-linux-musl (Static Execution)  
-**License:** GPLv3  
+**License:** MIT · **Edition:** Rust 2024 (2021 for `quantra-logind`) · **Version:** 6.0.x
 
----
+## What's in this workspace
 
-## Overview
+| Crate | Binary | Role |
+|---|---|---|
+| [`quantra`](quantra/) | `quantra` | PID 1 — parses service TOML units, resolves dependencies, starts services in dependency-ordered waves, applies cgroup v2 / AppArmor / seccomp, watches health/crash state. |
+| [`quantra-ctl`](quantra-ctl/) | `quantra-ctl` | CLI to `quantra`'s control socket — start/stop/restart/enable/disable services, inspect status, tail metrics. |
+| [`quantra-logind`](quantra-logind/) | `quantra-logind`, `quantra-logindctl` | Session/login manager — a `systemd-logind` superset, provides `org.freedesktop.login1` on the system D-Bus. |
+| [`quantra-ramfs`](quantra-ramfs/) | `quantra-ramfs` | Stage-1 early-userspace boot orchestrator (initramfs) — device discovery, dm-verity/LUKS+TPM2, fsck, `pivot_root`, then `execve`s into `quantra`. |
+| [`quantra-net/quantra-netd`](quantra-net/quantra-netd/) | `quantra-netd` | Privileged network daemon — interfaces, routing, DHCP, WireGuard, firewall, all via raw `rtnetlink`, no external tools shelled out to. |
+| [`quantra-net/quantra-net`](quantra-net/quantra-net/) | `quantra-net` | CLI that talks to `quantra-netd` over its control socket. |
+| [`quantra-net/common`](quantra-net/common/) | — | Shared IPC types/protocol between `quantra-net` and `quantra-netd`. |
 
-Quantra-System is a comprehensive, zero-bloat core infrastructure stack for modern Linux environments. It unifies the critical early-boot and networking components into a single, tightly integrated monorepo. 
+## Boot flow
 
-Engineered for stealth, extreme performance, and embedded/robotics systems, Quantra eliminates the need for legacy, fragmented tools (like systemd, busybox-based initramfs, or NetworkManager). It operates entirely without D-Bus, avoids heavy asynchronous runtimes, and compiles into 100% static musl binaries.
+```text
+kernel
+  → quantra-ramfs (initramfs: discover root, verify, pivot_root)
+    → quantra (PID 1: mounts, services, sockets)
+       ├─ quantra-ctl     (operator CLI, talks to /run/quantra/control)
+       ├─ quantra-logind  (session/login, system D-Bus org.freedesktop.login1)
+       └─ quantra-netd    (network daemon, /run/quantra-system/quantra-netd.sock)
+             └─ quantra-net (CLI)
+```
 
----
+## Filesystem layout
 
-## Monorepo Architecture
+Zainium has no `/usr`, `/etc`, or `/var` at the real root — everything
+lives under `/overlayer` (see [Zainium OS](https://github.com/Zainium-Dynamics/ZainiumOS)
+for the full layout). Quantra's own paths:
 
-This workspace is divided into highly optimized, purpose-built crates:
+```text
+/overlayer/syshub/etc/quantra-system/
+  init.toml          — global init config
+  services/          — service unit definitions (*.toml)
+  enabled/            — boot-enable markers (presence = auto-start)
+  tmpfiles.d/          — tmpfiles.d-style directory/file provisioning rules
+  vconsole.conf        — virtual console config
 
-| Crate | Component | Description |
-| :--- | :--- | :--- |
-| **`quantra`** | PID 1 Daemon | The core system and service manager. Enforces security profiles, cgroup v2 limits, and parallel BFS wave dependency resolution. |
-| **`quantra-ctl`** | Service CLI | The control plane for service lifecycle management, state inspection, and JSON-structured metrics. |
-| **`quantra-ramfs`** | Initramfs | Stage-1 boot orchestrator. Discovers the root partition and target init binary dynamically without external shell scripts. |
-| **`zai-netd`** | Network Daemon | Privileged daemon that autonomously executes `rtnetlink` operations securely via Unix `peer_cred` token-less auth. |
-| **`zai-net`** | Network CLI | The user-facing network configuration tool for managing Interfaces, Routes, WiFi, VPNs, and Firewalls. |
-| **`common`** | Shared Library | Shared IPC data models and length-prefixed JSON protocol logic. |
+/overlayer/syshub/var/log/quantra-system/   — persistent logs
+/overlayer/syshub/var/lib/quantra-system/   — persistent state
 
----
+/run/quantra/control        — quantra-ctl's Unix control socket
+/run/quantra/metrics        — Prometheus-format metrics endpoint
+/run/quantra-system/        — runtime state (journal socket, etc.)
+/run/quantra-system/quantra-netd.sock — quantra-net's IPC socket
+/run/quantra-logind/         — quantra-logind runtime socket/session state
+```
 
-## Core Infrastructure Highlights
+> **Known issue, not yet fixed**: a few runtime paths (`/run/dbus/...` in
+> `quantra`'s tmpfiles/service-unit setup and `quantra-logind`'s D-Bus
+> bridge) are still hardcoded to bare real-root `/run/dbus` instead of
+> being scoped consistently — most other D-Bus paths in the same files
+> already use `/overlayer/syshub/...` correctly. `/run` itself is treated
+> as a real-root tmpfs exception throughout (matching `/proc`, `/sys`,
+> `/dev`), which may be intentional, but isn't documented anywhere yet.
 
-- **Absolute Memory Safety:** Eradicates entire classes of vulnerabilities (buffer overflows, use-after-free) by utilizing 100% safe Rust in the execution path.
-- **Advanced Kernel Security:** Enforces `integrity` Kernel Lockdown mode directly at boot. Utilizes Landlock LSM sandboxing and `mlockall` to prevent core components from paging to disk.
-- **Zero-Bloat Threading:** Entirely bypasses heavy asynchronous runtimes in favor of the standard library for the core PID 1 loop, keeping binary sizes minimal.
-- **Sub-100ms Boot Pipeline:** Implements a strictly ordered 12-phase boot sequence, guaranteeing deterministic state and parallel service initialization.
-- **Native Health Monitoring:** Eliminates the need for external monitoring daemons by integrating Docker-style healthchecks and crash-loop breakers directly into the PID 1 service runner.
+## Building
 
----
+```sh
+cargo build --workspace --release
+```
 
-## Build Instructions
+Each binary is a normal `x86_64-unknown-linux-musl`-targetable Rust
+binary — no special build tooling required beyond a standard Rust
+toolchain. `quantra-ramfs` and `quantra` intentionally keep integer
+overflow checks on (`overflow-checks = true`) even in release builds,
+since PID 1 and the early-boot orchestrator must not silently wrap on bad
+input.
 
-The entire engine is designed to be built as a standalone, statically linked toolchain requiring no external host libraries.
+```sh
+cargo test --workspace       # 263 tests across the workspace
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets
+```
 
-**Prerequisites:**
-- Rust `1.82+`
-- `musl-tools` (for static compilation)
+## Status
 
-**Compilation:**
-The workspace is configured to target `x86_64-unknown-linux-musl` by default via `.cargo/config.toml`.
+Actively developed, pre-1.0. `clippy` currently has a backlog of
+non-blocking style lints across the workspace (mostly `collapsible_if` and
+doc-comment formatting) — CI runs it in report-only mode until that's
+cleared; `fmt` and the test suite are hard gates.
 
+## Contributing
 
-# Compile all workspace crates into optimized, static binaries
-cargo build --release --workspace
+Part of the [Zainium Dynamics](https://github.com/Zainium-Dynamics)
+ecosystem. Issues and PRs welcome — see each crate's own README for
+component-specific implementation notes.
 
-# Run all test suites and security contract guards
-cargo test --all
+## License
 
-Compiled static binaries will be available in the target/x86_64-unknown-linux-musl/release/ directory.
-Branching & Contribution Strategy
-
-This repository follows a strict Git Flow to maintain absolute stability for production environments:
-
-    contributors branch: All new features, experimental code, and Pull Requests must target this branch.
-
-    main branch: Represents the stable, production-ready "Master Gold" version. Code is merged here only after passing comprehensive security, static analysis, and unit test suites.
-
-    Please ensure cargo fmt --all and cargo test --all pass locally before submitting any code.
-
-License
-
-GNU General Public License v3.0 (GPLv3)
-
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-Any modifications or larger works utilizing this core engine must also be released under the same license, ensuring the code remains open and beneficial to the entire Linux community. See the LICENSE file for full details.
-
-## Feedback & Issue Reporting
-
-Systems engineering at the core infrastructure level requires rigorous peer review and continuous testing. We highly encourage systems experts, security researchers, Rust developers, and hardware testers to audit and test this codebase.
-
-If you encounter any bugs, compilation errors, memory-safety concerns, or logical flaws during your testing—or if you have architectural suggestions for extreme optimization—please **open an Issue** in this repository. 
-
-When reporting an issue, kindly provide:
-- The exact error message or panic trace.
-- Steps to reproduce the anomaly.
-- Your target architecture and hardware specifications.
-
-Your expertise and feedback are vital in making Quantra-System the most robust and secure PID 1 engine available.
+MIT — see [LICENSE](LICENSE).

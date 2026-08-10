@@ -1,0 +1,33 @@
+# ── quantra-netd — privileged network daemon ──────────────────────────────────
+# Bootstrap lane: starts before console / greeter / logind clients that need net.
+
+name = "quantra-netd"
+description = "Zainium network daemon — rtnetlink, WiFi, VPN, firewall"
+command = "/overlayer/syshub/engine/quantra-netd"
+
+no_new_privileges = true
+non_dumpable = true
+seccomp = "off"
+# seccomp_profile = "network-daemon"
+
+oneshot = false
+console = false
+notify_type = "simple"
+working_dir = "/"
+# Socket matches quantra-net common::SOCKET_PATH
+ready_socket = "/run/quantra-system/quantra-netd.sock"
+
+restart = "on-failure"
+restart_sec = 2
+max_restarts = 5
+restart_interval_sec = 60
+
+timeout_start = 30
+timeout_stop = 10
+reload_signal = "SIGHUP"
+
+# Dependents declare after = ["quantra-netd"] (console, greeter, logind)
+milestone = ["network-up"]
+
+[environment]
+PATH = "/overlayer/syshub/bin:/overlayer/syshub/sbin:/overlayer/syshub/engine:/bin:/sbin"

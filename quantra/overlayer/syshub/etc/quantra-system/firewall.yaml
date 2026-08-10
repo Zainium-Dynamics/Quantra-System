@@ -1,0 +1,5 @@
+# quantra-netd firewall state
+# Auto-managed by quantra-netd — do not edit manually
+active_preset: null
+nat_enabled: false
+zones: {}

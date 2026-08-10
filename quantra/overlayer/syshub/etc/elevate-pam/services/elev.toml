@@ -1,0 +1,25 @@
+# PAM stack for elev (su replacement).
+
+[service]
+name = "elev"
+description = "elev (su) authentication"
+
+[[auth]]
+control = "sufficient"
+module = "rootok"
+
+[[auth]]
+control = "required"
+module = "unix"
+
+[[account]]
+control = "required"
+module = "unix"
+
+[[password]]
+control = "required"
+module = "unix"
+
+[[session]]
+control = "required"
+module = "unix"

@@ -1,0 +1,19 @@
+# ── Example Mount Unit ────────────────────────────────────────────────────────
+# Mount /data partition after boot
+# Remove this file or edit for your disk layout
+[mount]
+name = "data"
+what = "LABEL=ZAINIUM"
+where = "/data"
+type = "ext4"
+
+# options: 
+# 'nofail' prevents system hang if drive is missing
+# 'noatime' makes disk access faster
+options = "defaults,nofail,noatime,nodiratime,errors=remount-ro"
+
+timeout_sec = 10
+
+# Boot sequence
+after = ["local-fs-pre"]
+milestone = ["local-fs"]

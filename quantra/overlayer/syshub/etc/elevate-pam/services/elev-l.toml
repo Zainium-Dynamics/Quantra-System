@@ -1,0 +1,31 @@
+# elev -l / elev --login service stack for elevate-pam.
+# Install: /etc/elevate-pam/services/elev-l.toml
+
+[service]
+name = "elev-l"
+description = "elev login-shell mode"
+
+[[auth]]
+control = "sufficient"
+module = "rootok"
+
+[[auth]]
+control = "required"
+module = "unix"
+
+[[account]]
+control = "required"
+module = "unix"
+
+[[password]]
+control = "required"
+module = "unix"
+
+[[session]]
+control = "required"
+module = "env"
+args = ["readenv=1"]
+
+[[session]]
+control = "required"
+module = "unix"

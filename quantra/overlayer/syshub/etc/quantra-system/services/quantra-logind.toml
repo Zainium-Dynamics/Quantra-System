@@ -1,0 +1,36 @@
+# ── quantra-logind — session / seat / power (login1-compatible) ───────────────
+# Deploy binary: /overlayer/syshub/engine/quantra-logind
+# Config:        /overlayer/syshub/etc/quantra-system/logind.conf
+
+name = "quantra-logind"
+description = "Zainium login/session manager — seats, sessions, power, inhibitors"
+command = "/overlayer/syshub/engine/quantra-logind"
+
+notify_type = "notify"
+restart = "on-failure"
+restart_sec = 3
+timeout_start = 30
+timeout_stop = 15
+
+user = "root"
+group = "root"
+working_dir = "/"
+runtime_directory = "quantra-logind"
+
+# System bus must exist before login1 D-Bus name is claimed
+after = ["dbus", "quantra-netd"]
+# graphical-launcher declares after = ["quantra-logind"]
+milestone = ["login-ready"]
+
+# Needs CAP_SYS_ADMIN for /run/user tmpfs etc.
+no_new_privileges = false
+non_dumpable = false
+seccomp = "off"
+
+[environment]
+RUST_LOG = "info"
+PATH = "/overlayer/syshub/bin:/overlayer/syshub/sbin:/overlayer/syshub/engine:/bin:/sbin"
+
+[cgroup_config]
+memory_limit = "64M"
+cpu_weight = 200

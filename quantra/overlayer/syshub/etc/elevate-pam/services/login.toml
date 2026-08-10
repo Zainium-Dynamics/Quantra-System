@@ -1,0 +1,35 @@
+# elevate-pam — Console/greeter login (NO pam.d)
+# Auth: elevate-crypto via module unix. Session: quantra-logind.
+
+[service]
+name = "login"
+description = "Console/greeter login — elevate-pam auth; session via quantra-logind"
+
+[[auth]]
+control = "required"
+module = "env"
+args = ["readenv=1"]
+
+[[auth]]
+control = "required"
+module = "unix"
+
+[[account]]
+control = "required"
+module = "unix"
+
+[[password]]
+control = "required"
+module = "unix"
+
+[[session]]
+control = "required"
+module = "env"
+
+[[session]]
+control = "required"
+module = "limits"
+
+[[session]]
+control = "required"
+module = "unix"

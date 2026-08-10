@@ -1,0 +1,22 @@
+# Deploy to: /overlayer/syshub/etc/quantra-system/services/quantra-logind.toml
+
+name        = "quantra-logind"
+description = "Zainium Login Manager — session, seat, power, inhibitor management"
+command     = "/overlayer/syshub/engine/quantra-logind"
+
+notify_type = "notify"
+restart     = "on-failure"
+restart_sec = 3
+
+no_new_privileges = false  # needs CAP_SYS_ADMIN for tmpfs mount
+user  = "root"
+group = "root"
+
+runtime_directory = "quantra-logind"
+
+[environment]
+RUST_LOG = "info"
+
+[cgroup_config]
+memory_limit = "64M"
+cpu_weight   = 200

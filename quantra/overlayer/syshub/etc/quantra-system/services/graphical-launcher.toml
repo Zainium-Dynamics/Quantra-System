@@ -1,0 +1,33 @@
+# ── Graphical Launcher — COSMIC greeter (not LightDM) ─────────────────────────
+# Starts after network + logind. Disable for headless:
+#   quantra-ctl disable graphical-launcher
+
+name = "graphical-launcher"
+description = "COSMIC greeter / graphical login (Zainium desktop)"
+command = "/overlayer/syshub/bin/cosmic-greeter"
+user = "root"
+group = "root"
+working_dir = "/"
+
+launcher = true
+console = false
+tty = "/dev/tty7"
+notify_type = "simple"
+
+restart = "on-failure"
+restart_sec = 5
+timeout_start = 30
+timeout_stop = 10
+max_restarts = 3
+restart_interval_sec = 60
+
+after = ["dbus", "quantra-netd", "quantra-logind"]
+milestone = ["graphical-ready"]
+
+no_new_privileges = false
+non_dumpable = false
+seccomp = "off"
+
+[environment]
+XDG_SESSION_TYPE = "wayland"
+PATH = "/overlayer/syshub/bin:/overlayer/syshub/sbin:/overlayer/syshub/engine:/bin:/sbin"

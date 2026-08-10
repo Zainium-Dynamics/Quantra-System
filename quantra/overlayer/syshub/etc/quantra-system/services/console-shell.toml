@@ -1,0 +1,46 @@
+# ── Console Shell — interactive shell on tty1 ─────────────────────────────────
+# Bootstrap lane: after quantra-netd
+# Paths: Zainium has NO /usr — use overlayer/syshub only.
+
+name = "console-shell"
+description = "Interactive Zainium console shell on tty1"
+command = "/overlayer/syshub/bin/bash"
+args = ["-il"]
+console = true
+tty = "/dev/tty1"
+working_dir = "/"
+restart = "always"
+restart_sec = 1
+timeout_start = 10
+timeout_stop = 5
+max_restarts = 10
+restart_interval_sec = 30
+watchdog_sec = 0
+notify_type = "simple"
+
+after = ["quantra-netd"]
+
+no_new_privileges = false
+non_dumpable = false
+clear_ambient_caps = false
+seccomp = "off"
+
+# Kept in sync by hand with quantra/src/environment.rs::HYBRID_ENV — a TOML
+# file can't call the Rust function services/manager.rs's builtin fallback
+# uses, so this must be updated whenever that table changes.
+[environment]
+TERM = "linux"
+HOME = "/root"
+SHELL = "/overlayer/syshub/bin/bash"
+MUSL_TRIPLE = "x86_64-zainium-linux-musl"
+MUSL_SYSDIR = "/overlayer/syshub/x86_64-zainium-linux-musl"
+MUSL_LIB = "/overlayer/syshub/x86_64-zainium-linux-musl/lib"
+RELIBC_DIR = "/overlayer/syshub/lib"
+ZAI_MUSL_LD = "/overlayer/syshub/x86_64-zainium-linux-musl/lib/ld-musl-x86_64.so.1"
+ZAI_ENV = "1"
+ZAI_HYBRID = "musl+relibc"
+ZAI_NO_FHS = "1"
+PATH = "/overlayer/syshub/bin:/overlayer/syshub/sbin:/overlayer/syshub/x86_64-zainium-linux-musl/bin:/overlayer/zexlib/union/bin"
+LD_LIBRARY_PATH = "/overlayer/syshub/lib:/overlayer/syshub/x86_64-zainium-linux-musl/lib:/overlayer/zexlib/union/lib"
+LANG = "C.UTF-8"
+LC_ALL = "C.UTF-8"

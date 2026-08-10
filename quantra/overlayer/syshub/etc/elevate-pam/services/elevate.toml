@@ -1,0 +1,37 @@
+# PAM service stack for the elevate sudo replacement.
+# Install as: /etc/elevate-pam/services/elevate.toml
+#
+# TOML only — JSON is not supported.
+
+[service]
+name = "elevate"
+description = "elevate (sudo replacement) authentication stack"
+
+# Authentication
+[[auth]]
+control = "required"
+module = "env"
+args = ["readenv=1"]
+
+[[auth]]
+control = "required"
+module = "unix"
+
+# Account
+[[account]]
+control = "required"
+module = "unix"
+
+# Password change
+[[password]]
+control = "required"
+module = "unix"
+
+# Session
+[[session]]
+control = "required"
+module = "limits"
+
+[[session]]
+control = "required"
+module = "unix"
