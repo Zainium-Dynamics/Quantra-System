@@ -53,4 +53,4 @@ indexmap = "=2.6.0"
 # schema behind PID 1's boot env; also readable via the `oxidized-environment`
 # CLI by quantra-ctl, zainium-installer, and zex without linking Rust. See
 # oxidized-environment-core's docs for why this replaced /etc/profile.d.
-oxidized-environment-core = { path = "../../oxidized-environment/crates/oxidized-environment-core" }
+oxidized-environment-core = { git = "https://github.com/Zainium-Dynamics/oxidized-environment.git", rev = "ffa2c5b" }
