@@ -1,10 +1,10 @@
 # quantra-ramfs — Zainium OS Stage-1 Initramfs Orchestrator
 
 **Author:** Ali Zain  
-**Version:** 5.0.1  
-**Language:** Rust 2021 (100% — zero shell scripts in the boot path)  
+**Version:** 6.0.0  
+**Language:** Rust 2024 (100% — zero shell scripts in the boot path)  
 **Target:** `x86_64-zainium-linux-musl` (static binary, zero runtime dependencies)  
-**MSRV:** 1.82
+**MSRV:** 1.87
 
 ---
 
@@ -142,14 +142,22 @@ broken package installation without needing a live ISO.
 
 ```
 src/
-  main.rs        Boot orchestrator — phase sequencing and timing
-  phases.rs      BootPhase constants (0–7) + atomic BOOT_PHASE tracker
-  mounts.rs      Early filesystem mounts + loop device node creation
-  cmdline.rs     /proc/cmdline parser (root= loop= luks= rootwait= init=)
-  rootfs.rs      Root device detection, loop ioctl, LUKS, live medium scan
-  overlay.rs     OverlayFS assembly (syshub + zaisys + zexlib → /new_root)
-  switch.rs      pivot_root + chroot fallback + init binary discovery
-  emergency.rs   Built-in emergency shell (reboot/poweroff/ls/cat/mount)
+  main.rs           Boot orchestrator — phase sequencing and timing
+  phases.rs         BootPhase constants + atomic BOOT_PHASE tracker
+  mounts.rs         Early filesystem mounts + loop device node creation
+  cmdline.rs        /proc/cmdline parser (root= loop= luks= rootwait= init=)
+  rootfs.rs         Root device detection, loop ioctl, LUKS, live medium scan
+  overlay.rs        OverlayFS assembly (syshub + zaisys + zexlib → /new_root)
+  switch.rs         pivot_root + chroot fallback + init binary discovery
+  emergency.rs      Built-in emergency shell (reboot/poweroff/ls/cat/mount)
+  fsck.rs           Filesystem check before mount
+  raid.rs           Software RAID (mdadm-equivalent) assembly
+  udev.rs           Netlink-based device discovery (no external udev/mdev)
+  network_boot.rs   Network root support (NFS/iSCSI-style boot)
+  plymouth.rs       Boot splash integration
+  tpm2.rs           TPM2 unseal for LUKS key material
+  verity.rs         dm-verity integrity verification
+  measured_boot.rs  TPM2-backed measured boot (PCR extension)
 ```
 
 ---
