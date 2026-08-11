@@ -1,31 +1,31 @@
-# zai-net — Universal Network Management Stack
+# quantra-net — Universal Network Management Stack
 
 > A fast, memory-safe, privileged network daemon and CLI client for Linux.
 
-**Author:** Ali Zain <alizain.arch@gmail.com>  
-**Version:** 5.0.1  
+**Author:** Ali Zain <alizain.x404@gmail.com>  
+**Version:** 6.0.0  
 **Language:** Rust (100% memory-safe)  
-**License:** GPLv3  
+**License:** MIT  
 
 ---
 
-## What Is zai-net?
+## What Is quantra-net?
 
-The `zai-net` workspace provides a highly secure, zero-bloat networking stack designed to replace legacy network managers. It separates the execution of privileged network operations (daemon) from user-facing interactions (CLI), communicating exclusively over a hardened Unix domain socket using a length-prefixed JSON protocol.
+The `quantra-net` workspace provides a highly secure, zero-bloat networking stack designed to replace legacy network managers. It separates the execution of privileged network operations (daemon) from user-facing interactions (CLI), communicating exclusively over a hardened Unix domain socket using a length-prefixed JSON protocol.
 
 ### Workspace Layout
 
 - `common/`: Shared command/response types, data models, and IPC framing helpers.
-- `zai-net/`: The user-facing CLI binary.
-- `zai-netd/`: The privileged daemon that executes networking operations.
+- `quantra-net/`: The user-facing CLI binary.
+- `quantra-netd/`: The privileged daemon that executes networking operations.
 
 ---
 
 ## Architecture & Request Flow
 
-1. User invokes `zai-net` commands.
+1. User invokes `quantra-net` commands.
 2. CLI validates arguments and serializes the `NetCommand`.
-3. CLI connects to `/run/zainium/zai-netd.sock`.
+3. CLI connects to `/run/quantra-system/quantra-netd.sock`.
 4. Daemon validates peer identity strictly via Unix credentials (`peer_cred`).
 5. Daemon executes the command via `rtnetlink` or secure external helpers.
 6. Daemon returns the `NetResponse`.
@@ -34,9 +34,9 @@ The `zai-net` workspace provides a highly secure, zero-bloat networking stack de
 
 ```mermaid
 flowchart LR
-    U[User CLI invocation] --> C[zai-net CLI]
-    C --> S[/run/zainium/zai-netd.sock]
-    S --> D[zai-netd]
+    U[User CLI invocation] --> C[quantra-net CLI]
+    C --> S[/run/quantra-system/quantra-netd.sock]
+    S --> D[quantra-netd]
     D --> A{Auth check\npeer_cred}
     A -->|allow| E[Execute network action]
     A -->|deny| R[NetResponse::Error]
@@ -48,7 +48,7 @@ flowchart LR
 
 ---
 
-## CLI Command Surface (`zai-net`)
+## CLI Command Surface (`quantra-net`)
 
 The client provides a comprehensive surface for system network administration:
 
@@ -63,18 +63,18 @@ The client provides a comprehensive surface for system network administration:
 
 **Examples:**
 ```bash
-zai-net link dhcp eth0
-zai-net route add default -v 192.168.1.1 --interface eth0
-zai-net wifi connect wlp2s0 MySSID --security wpa2-psk --password 'secret'
-zai-net firewall preset home
-zai-net quality monitor eth0 --duration 10
+quantra-net link dhcp eth0
+quantra-net route add default -v 192.168.1.1 --interface eth0
+quantra-net wifi connect wlp2s0 MySSID --security wpa2-psk --password 'secret'
+quantra-net firewall preset home
+quantra-net quality monitor eth0 --duration 10
 ```
 
 ---
 
 ## Security and Hardening
 
-The `zai-netd` daemon is engineered with a strict, defense-in-depth security model:
+The `quantra-netd` daemon is engineered with a strict, defense-in-depth security model:
 
 - **Process Hardening:** - Sets `PR_SET_NO_NEW_PRIVS` to prevent privilege escalation.
   - Sets `PR_SET_DUMPABLE` to `0` to prevent memory dumping.
@@ -83,7 +83,7 @@ The `zai-netd` daemon is engineered with a strict, defense-in-depth security mod
   - Socket file permission strictly set to `0600`.
 - **Token-less Authorization:**
   - Validates clients using Kernel-level Unix peer credentials (`peer_cred`).
-  - Restricts execution to root (UID 0), the daemon's effective UID, or explicitly allowed UIDs via the `ZAI_NETD_ALLOWED_UIDS` environment variable.
+  - Restricts execution to root (UID 0), the daemon's effective UID, or explicitly allowed UIDs via the `QUANTRA_NETD_ALLOWED_UIDS` environment variable.
 - **Seccomp Contract:**
   - The daemon strictly aligns with the `network-daemon` seccomp-bpf profile.
   - Guarded by continuous CI contract tests to prevent profile drift.
@@ -92,16 +92,17 @@ The `zai-netd` daemon is engineered with a strict, defense-in-depth security mod
 
 ## External Runtime Dependencies
 
-While the daemon handles internal routing natively via `rtnetlink`, it securely orchestrates the following system tools for specific protocols:
+Link/route/DHCP/WireGuard management is all native — `netlink.rs`,
+`routing.rs`, `dhcp.rs`, and `wireguard.rs` talk `rtnetlink`/generic
+netlink directly, no external binary involved. What's still shelled out to
+(via `exec.rs`, with `zex infuse <pkg>` install hints on failure):
 
-- `ip` (iproute2)
-- `dhcpcd`
-- `ping` (iputils)
-- `iw`, `wpa_supplicant`, `wpa_cli` (Wireless)
-- `nft` (nftables for firewall management)
-- `wg-quick`, `wg` (Wireguard VPN)
-- `openvpn`
-- `kill`
+- `ip` (iproute2) — a handful of remaining call sites (`netlink.rs`, `routing.rs`, `netns.rs`)
+- `iw`, `wpa_supplicant`, `wpa_cli` — WiFi scan/connect (`wifi.rs`)
+- `ping` (iputils) — quality/diagnostics (`quality.rs`)
+- `nft` (nftables) — firewall rules (`firewall.rs`)
+- `openvpn` — non-WireGuard VPN (`vpn.rs`)
+- `unshare`, `nsenter`, `umount` — network namespaces (`netns.rs`)
 
 ---
 
@@ -110,8 +111,8 @@ While the daemon handles internal routing natively via `rtnetlink`, it securely 
 - Network definitions: `/overlayer/syshub/etc/quantra-system/network.yaml`
 - VPN profiles: `/overlayer/syshub/etc/quantra-system/vpn/`
 - Firewall rules: `/overlayer/syshub/etc/quantra-system/firewall.yaml`
-- IPC Socket: `/run/zainium/zai-netd.sock`
-- NFT runtime cache: `/run/zainium/nft-zainium.rules`
+- IPC Socket: `/run/quantra-system/quantra-netd.sock`
+- NFT runtime cache: `/run/quantra-system/nft-quantra.rules`
 
 ---
 
@@ -128,7 +129,7 @@ cargo fmt --all
 cargo test --all
 
 # Run the strict security contract test directly
-cargo test -p zai-netd tests::expected_init_seccomp_profile_is_network_daemon
+cargo test -p quantra-netd tests::expected_init_seccomp_profile_is_network_daemon
 ```
 
 ---
