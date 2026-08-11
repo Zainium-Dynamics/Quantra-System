@@ -13,35 +13,37 @@
 ///
 /// Instead, PID 1 sets the canonical environment on **itself**, once, before
 /// anything is spawned, resolved from the single schema `oxidized-environment`
-/// owns (see that crate's docs for the full design — `environment.toml` +
-/// `environment.d/*.toml`, also readable by `zainium-installer` and
-/// `quantra-ctl` without linking Rust at all). Every child process inherits
-/// it for free through normal `fork`/`exec` unless a spawn path deliberately
-/// builds an isolated environment (see `process.rs::BASE_PATH` — background
-/// services still get a minimal, explicit env on purpose, for isolation, not
-/// because the full env isn't available).
+/// owns (see that crate's docs for the full design — one file, `oxienv.toml`,
+/// also readable by `zainium-installer` and `quantra-ctl` without linking
+/// Rust at all). Every child process inherits it for free through normal
+/// `fork`/`exec` unless a spawn path deliberately builds an isolated
+/// environment (see `process.rs::BASE_PATH` — background services still get
+/// a minimal, explicit env on purpose, for isolation, not because the full
+/// env isn't available).
 ///
 /// # Where the Zainium-ness lives
 ///
 /// `oxidized-environment-core` is a generic library — it has no compiled-in
 /// root and no compiled-in fallback content; `resolve()` returns an empty
-/// map if `environment.toml` doesn't exist yet. That's correct for a library
-/// any distro's init could link, but PID 1 must never actually boot with an
+/// map if `oxienv.toml` doesn't exist yet. That's correct for a library any
+/// distro's init could link, but PID 1 must never actually boot with an
 /// empty `PATH`. So the Zainium-specific root path and the minimal boot
 /// safety-net table both live *here*, in quantra's own source — not in the
 /// generic crate.
 use std::collections::HashMap;
 use std::path::Path;
 
-/// The live syshub root on a booted Zainium system. Quantra-owned, not part
-/// of `oxidized-environment-core` (which has no compiled-in root at all).
-const SYSHUB_ROOT: &str = "/overlayer/syshub";
+/// The live syshub config root on a booted Zainium system — where
+/// `oxienv.toml` lives (`etc/`, same as every other package's config).
+/// Quantra-owned, not part of `oxidized-environment-core` (which has no
+/// compiled-in root at all).
+const SYSHUB_ROOT: &str = "/overlayer/syshub/etc";
 
-/// Minimal boot safety net: only used if `environment.toml` doesn't exist
-/// yet (fresh/broken install) or fails to parse. Real content lives in
-/// `environment.toml`, seeded by `zainium-installer` at install time — this
-/// is not that file's replacement, just enough to get a shell with a
-/// working PATH so someone can fix the real file.
+/// Minimal boot safety net: only used if `oxienv.toml` doesn't exist yet
+/// (fresh/broken install) or fails to parse. Real content lives in
+/// `oxienv.toml`, seeded by `zainium-installer` at install time — this is
+/// not that file's replacement, just enough to get a shell with a working
+/// PATH so someone can fix the real file.
 const BOOT_FALLBACK: &[(&str, &str)] = &[
     (
         "PATH",
@@ -55,8 +57,7 @@ const BOOT_FALLBACK: &[(&str, &str)] = &[
 
 /// [`oxidized_environment::resolve`] against [`SYSHUB_ROOT`], with
 /// [`BOOT_FALLBACK`] filled in for any of its keys that came back missing
-/// (not overridden if `environment.toml` already set them — only fills
-/// gaps).
+/// (not overridden if `oxienv.toml` already set them — only fills gaps).
 fn resolve() -> HashMap<String, String> {
     let mut env = oxidized_environment::resolve(Path::new(SYSHUB_ROOT));
     for (key, value) in BOOT_FALLBACK {

@@ -222,10 +222,10 @@ enum Cmd {
         /// Target service to remove
         to: String,
     },
-    /// Show the resolved environment (environment.toml + environment.d) —
-    /// the same one PID 1 sets on itself at boot. Reads straight from disk;
-    /// does not talk to the control socket, so it works even if quantra
-    /// isn't running (e.g. inspecting a mounted install target).
+    /// Show the resolved environment (oxienv.toml) — the same one PID 1
+    /// sets on itself at boot. Reads straight from disk; does not talk to
+    /// the control socket, so it works even if quantra isn't running (e.g.
+    /// inspecting a mounted install target).
     Env {
         /// Root to resolve against (default: the live system)
         #[arg(long, env = oxidized_environment::ROOT_OVERRIDE_ENV, default_value = SYSHUB_ROOT)]
@@ -233,9 +233,11 @@ enum Cmd {
     },
 }
 
-/// The live syshub root on a booted Zainium system. quantra-ctl-owned —
-/// oxidized-environment-core has no compiled-in root of its own.
-const SYSHUB_ROOT: &str = "/overlayer/syshub";
+/// The live syshub config root on a booted Zainium system — where
+/// `oxienv.toml` lives (`etc/`, same as every other package's config).
+/// quantra-ctl-owned — oxidized-environment-core has no compiled-in root of
+/// its own.
+const SYSHUB_ROOT: &str = "/overlayer/syshub/etc";
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
