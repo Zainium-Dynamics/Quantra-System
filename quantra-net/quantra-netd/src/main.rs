@@ -90,7 +90,7 @@ fn load_extra_allowed_uids() -> Vec<u32> {
 }
 
 fn peer_uid_is_authorized(peer_uid: u32, daemon_uid: u32, extra_allowed_uids: &[u32]) -> bool {
-    peer_uid == 0 || peer_uid == daemon_uid || extra_allowed_uids.iter().any(|uid| *uid == peer_uid)
+    peer_uid == 0 || peer_uid == daemon_uid || extra_allowed_uids.contains(&peer_uid)
 }
 
 fn authorize_peer(stream: &UnixStream) -> Result<()> {

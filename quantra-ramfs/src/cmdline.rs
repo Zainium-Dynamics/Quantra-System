@@ -140,6 +140,10 @@ pub struct Cmdline {
 }
 
 /// Phase at which `rd.break=` drops to emergency shell.
+// "Pre" is load-bearing here (each variant means "right before phase X"),
+// not accidental redundancy -- dropping it (clippy's suggestion) would
+// lose that "before" semantic.
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum RdBreak {
     /// Before Phase 4 (root mount)

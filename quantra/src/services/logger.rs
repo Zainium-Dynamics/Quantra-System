@@ -1,12 +1,13 @@
+//! Per-service output capture and log file writing
+//!
+//! Creates a `pipe2(O_CLOEXEC)` pair per service:
+//! - Write-end → child process (dup2'd onto stdout + stderr before exec)
+//! - Read-end → parent's logger thread (reads lines, writes timestamped
+//!   entries to `/overlayer/syshub/var/log/quantra-system/<service>.log`)
+//!
+//! Log files rotate at 10MB: current log renamed to `<service>.log.1`.
+
 use anyhow::Result;
-/// Per-service output capture and log file writing
-///
-/// Creates a `pipe2(O_CLOEXEC)` pair per service:
-/// - Write-end → child process (dup2'd onto stdout + stderr before exec)
-/// - Read-end  → parent's logger thread (reads lines, writes timestamped entries
-///               to `/var/log/quantra-system/<service>.log`)
-///
-/// Log files rotate at 10MB: current log renamed to `<service>.log.1`.
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::io::RawFd;
@@ -83,17 +84,17 @@ impl ServiceLogger {
             }
 
             // Rotate if log exceeds max size
-            if let Ok(meta) = log_file.metadata() {
-                if meta.len() >= LOG_MAX_SIZE {
-                    let rotated = format!("{}/{}.log.1", LOG_DIR, self.name);
-                    let _ = fs::rename(&log_path, &rotated);
-                    log::info!("Rotated log for '{}' → {}", self.name, rotated);
-                    match open_log_append(&log_path) {
-                        Ok(f) => log_file = f,
-                        Err(e) => {
-                            eprintln!("[zai-init logger] Reopen failed for '{}': {}", self.name, e);
-                            break;
-                        }
+            if let Ok(meta) = log_file.metadata()
+                && meta.len() >= LOG_MAX_SIZE
+            {
+                let rotated = format!("{}/{}.log.1", LOG_DIR, self.name);
+                let _ = fs::rename(&log_path, &rotated);
+                log::info!("Rotated log for '{}' → {}", self.name, rotated);
+                match open_log_append(&log_path) {
+                    Ok(f) => log_file = f,
+                    Err(e) => {
+                        eprintln!("[zai-init logger] Reopen failed for '{}': {}", self.name, e);
+                        break;
                     }
                 }
             }

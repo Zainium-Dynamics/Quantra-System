@@ -107,94 +107,94 @@ pub async fn get_interface_detail(handle: &Handle, name: &str) -> Result<Option<
             }
         }
 
-        if let Some(iface_name) = iface_name {
-            if iface_name == name {
-                let index = link.header.index;
-                let flags_raw: u32 = link.header.flags;
-                let is_up = (flags_raw & IFF_UP) != 0;
+        if let Some(iface_name) = iface_name
+            && iface_name == name
+        {
+            let index = link.header.index;
+            let flags_raw: u32 = link.header.flags;
+            let is_up = (flags_raw & IFF_UP) != 0;
 
-                let mut mac = String::from("N/A");
-                let mut mtu = None;
-                let mut iface_type = None;
-                let mut qdisc = None;
-                let mut group = None;
-                let mut flags_list = Vec::new();
+            let mut mac = String::from("N/A");
+            let mut mtu = None;
+            let mut iface_type = None;
+            let mut qdisc = None;
+            let mut group = None;
+            let mut flags_list = Vec::new();
 
-                for attr in &link.nlas {
-                    match attr {
-                        Nla::Address(bytes) if bytes.len() == 6 => {
-                            mac = format!(
-                                "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-                                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]
-                            );
-                        }
-                        Nla::Mtu(mtu_val) => mtu = Some(*mtu_val),
-                        Nla::Link(n) => {
-                            iface_type = match n {
-                                1 => Some("Ethernet".to_string()),
-                                772 => Some("Loopback".to_string()),
-                                801 => Some("Wireless".to_string()),
-                                _ => Some(format!("Type {}", n)),
-                            };
-                        }
-                        Nla::Qdisc(q) => qdisc = Some(q.clone()),
-                        Nla::Group(g) => group = Some(*g),
-                        _ => {}
+            for attr in &link.nlas {
+                match attr {
+                    Nla::Address(bytes) if bytes.len() == 6 => {
+                        mac = format!(
+                            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+                            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]
+                        );
                     }
-                }
-
-                // Parse flags
-                let flag_names = [
-                    (0x0001, "UP"),
-                    (0x0002, "BROADCAST"),
-                    (0x0004, "DEBUG"),
-                    (0x0008, "LOOPBACK"),
-                    (0x0010, "POINTOPOINT"),
-                    (0x0020, "NOTRAILERS"),
-                    (0x0040, "RUNNING"),
-                    (0x0080, "NOARP"),
-                    (0x0100, "PROMISC"),
-                    (0x0200, "ALLMULTI"),
-                    (0x0400, "MASTER"),
-                    (0x0800, "SLAVE"),
-                    (0x1000, "MULTICAST"),
-                    (0x2000, "PORTSEL"),
-                    (0x4000, "AUTOMEDIA"),
-                    (0x8000, "DYNAMIC"),
-                ];
-                for (bit, label) in &flag_names {
-                    if flags_raw & bit != 0 {
-                        flags_list.push(label.to_string());
+                    Nla::Mtu(mtu_val) => mtu = Some(*mtu_val),
+                    Nla::Link(n) => {
+                        iface_type = match n {
+                            1 => Some("Ethernet".to_string()),
+                            772 => Some("Loopback".to_string()),
+                            801 => Some("Wireless".to_string()),
+                            _ => Some(format!("Type {}", n)),
+                        };
                     }
+                    Nla::Qdisc(q) => qdisc = Some(q.clone()),
+                    Nla::Group(g) => group = Some(*g),
+                    _ => {}
                 }
-
-                let ip_addresses = get_interface_addresses(handle, index).await?;
-                let statistics = parse_interface_stats(&link.nlas);
-                let wireless = if iface_type == Some("Wireless".to_string()) {
-                    get_wireless_info(handle, name).await?
-                } else {
-                    None
-                };
-
-                return Ok(Some(InterfaceDetail {
-                    index,
-                    name: name.to_string(),
-                    mac,
-                    state: if is_up {
-                        LinkState::Up
-                    } else {
-                        LinkState::Down
-                    },
-                    ip_addresses,
-                    mtu,
-                    iface_type,
-                    statistics,
-                    wireless,
-                    flags: flags_list,
-                    qdisc,
-                    group,
-                }));
             }
+
+            // Parse flags
+            let flag_names = [
+                (0x0001, "UP"),
+                (0x0002, "BROADCAST"),
+                (0x0004, "DEBUG"),
+                (0x0008, "LOOPBACK"),
+                (0x0010, "POINTOPOINT"),
+                (0x0020, "NOTRAILERS"),
+                (0x0040, "RUNNING"),
+                (0x0080, "NOARP"),
+                (0x0100, "PROMISC"),
+                (0x0200, "ALLMULTI"),
+                (0x0400, "MASTER"),
+                (0x0800, "SLAVE"),
+                (0x1000, "MULTICAST"),
+                (0x2000, "PORTSEL"),
+                (0x4000, "AUTOMEDIA"),
+                (0x8000, "DYNAMIC"),
+            ];
+            for (bit, label) in &flag_names {
+                if flags_raw & bit != 0 {
+                    flags_list.push(label.to_string());
+                }
+            }
+
+            let ip_addresses = get_interface_addresses(handle, index).await?;
+            let statistics = parse_interface_stats(&link.nlas);
+            let wireless = if iface_type == Some("Wireless".to_string()) {
+                get_wireless_info(handle, name).await?
+            } else {
+                None
+            };
+
+            return Ok(Some(InterfaceDetail {
+                index,
+                name: name.to_string(),
+                mac,
+                state: if is_up {
+                    LinkState::Up
+                } else {
+                    LinkState::Down
+                },
+                ip_addresses,
+                mtu,
+                iface_type,
+                statistics,
+                wireless,
+                flags: flags_list,
+                qdisc,
+                group,
+            }));
         }
     }
 
@@ -212,39 +212,36 @@ pub async fn get_interface_addresses(handle: &Handle, index: u32) -> Result<Vec<
     {
         if addr.header.index == index {
             for attr in &addr.nlas {
-                match attr {
-                    AddressNla::Address(bytes) => {
-                        if bytes.len() == 4 {
-                            let ip = format!(
-                                "{}.{}.{}.{}/{}",
-                                bytes[0], bytes[1], bytes[2], bytes[3], addr.header.prefix_len
-                            );
-                            addresses.push(ip);
-                        } else if bytes.len() == 16 {
-                            let ip = format!(
-                                "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}/{}",
-                                bytes[0],
-                                bytes[1],
-                                bytes[2],
-                                bytes[3],
-                                bytes[4],
-                                bytes[5],
-                                bytes[6],
-                                bytes[7],
-                                bytes[8],
-                                bytes[9],
-                                bytes[10],
-                                bytes[11],
-                                bytes[12],
-                                bytes[13],
-                                bytes[14],
-                                bytes[15],
-                                addr.header.prefix_len
-                            );
-                            addresses.push(ip);
-                        }
+                if let AddressNla::Address(bytes) = attr {
+                    if bytes.len() == 4 {
+                        let ip = format!(
+                            "{}.{}.{}.{}/{}",
+                            bytes[0], bytes[1], bytes[2], bytes[3], addr.header.prefix_len
+                        );
+                        addresses.push(ip);
+                    } else if bytes.len() == 16 {
+                        let ip = format!(
+                            "{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}:{:02x}{:02x}/{}",
+                            bytes[0],
+                            bytes[1],
+                            bytes[2],
+                            bytes[3],
+                            bytes[4],
+                            bytes[5],
+                            bytes[6],
+                            bytes[7],
+                            bytes[8],
+                            bytes[9],
+                            bytes[10],
+                            bytes[11],
+                            bytes[12],
+                            bytes[13],
+                            bytes[14],
+                            bytes[15],
+                            addr.header.prefix_len
+                        );
+                        addresses.push(ip);
                     }
-                    _ => {}
                 }
             }
         }
@@ -316,18 +313,17 @@ pub async fn get_wireless_info(_handle: &Handle, name: &str) -> Result<Option<Wi
             if let Ok(f) = rest.trim().parse::<f32>() {
                 frequency = f / 1000.0;
             }
-        } else if let Some(rest) = t.strip_prefix("tx bitrate: ") {
-            if let Some(v) = rest
+        } else if let Some(rest) = t.strip_prefix("tx bitrate: ")
+            && let Some(v) = rest
                 .split_whitespace()
                 .next()
                 .and_then(|x| x.parse::<f32>().ok())
-            {
-                _bitrate = v as u32;
-            }
+        {
+            _bitrate = v as u32;
         }
     }
 
-    let channel = if frequency >= 2.0 && frequency < 3.0 {
+    let channel = if (2.0..3.0).contains(&frequency) {
         let mhz = (frequency * 1000.0) as u32;
         if mhz <= 2484 {
             ((mhz - 2407) / 5).max(1)
@@ -361,10 +357,10 @@ pub async fn find_link_index(handle: &Handle, name: &str) -> Result<Option<u32>>
         .context("rtnetlink: failed to iterate links")?
     {
         for attr in &link.nlas {
-            if let Nla::IfName(iface_name) = attr {
-                if iface_name == name {
-                    return Ok(Some(link.header.index));
-                }
+            if let Nla::IfName(iface_name) = attr
+                && iface_name == name
+            {
+                return Ok(Some(link.header.index));
             }
         }
     }

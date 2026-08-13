@@ -613,7 +613,7 @@ fn set_efi_boot_to_firmware() -> Result<()> {
     let mut data = [0u8; 12]; // 4 bytes EFI attrs + 8 bytes value
     data[0] = 0x07; // EFI_VARIABLE_NON_VOLATILE | BOOTSERVICE | RUNTIME
     data[4] = 0x01; // value = 1 (boot to firmware UI)
-    fs::write(osi_path, &data).map_err(|e| anyhow::anyhow!("set EFI OsIndications: {}", e))
+    fs::write(osi_path, data).map_err(|e| anyhow::anyhow!("set EFI OsIndications: {}", e))
 }
 
 // ── Time helpers ──────────────────────────────────────────────────────────────

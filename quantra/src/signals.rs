@@ -142,37 +142,43 @@ fn run_reaper(read_fd: i32, codes: ExitCodeMap) {
 // ── Signal handler registration ──────────────────────────────────────────────
 
 unsafe fn register_sigchld_handler() -> Result<()> {
-    let sa = SigAction::new(
-        SigHandler::Handler(handle_chld),
-        // SA_NOCLDSTOP: don't fire on SIGSTOP/SIGCONT
-        // SA_RESTART:   restart interrupted syscalls (critical for pause() to work cleanly)
-        SaFlags::SA_NOCLDSTOP | SaFlags::SA_RESTART,
-        signal::SigSet::empty(),
-    );
-    signal::sigaction(Signal::SIGCHLD, &sa)?;
-    Ok(())
+    unsafe {
+        let sa = SigAction::new(
+            SigHandler::Handler(handle_chld),
+            // SA_NOCLDSTOP: don't fire on SIGSTOP/SIGCONT
+            // SA_RESTART:   restart interrupted syscalls (critical for pause() to work cleanly)
+            SaFlags::SA_NOCLDSTOP | SaFlags::SA_RESTART,
+            signal::SigSet::empty(),
+        );
+        signal::sigaction(Signal::SIGCHLD, &sa)?;
+        Ok(())
+    }
 }
 
 unsafe fn register_shutdown_handlers() -> Result<()> {
-    let sa = SigAction::new(
-        SigHandler::Handler(handle_shutdown),
-        SaFlags::SA_RESTART,
-        signal::SigSet::empty(),
-    );
-    signal::sigaction(Signal::SIGTERM, &sa)?;
-    signal::sigaction(Signal::SIGINT, &sa)?;
-    signal::sigaction(Signal::SIGPWR, &sa)?;
-    Ok(())
+    unsafe {
+        let sa = SigAction::new(
+            SigHandler::Handler(handle_shutdown),
+            SaFlags::SA_RESTART,
+            signal::SigSet::empty(),
+        );
+        signal::sigaction(Signal::SIGTERM, &sa)?;
+        signal::sigaction(Signal::SIGINT, &sa)?;
+        signal::sigaction(Signal::SIGPWR, &sa)?;
+        Ok(())
+    }
 }
 
 unsafe fn register_reboot_handler() -> Result<()> {
-    let sa = SigAction::new(
-        SigHandler::Handler(handle_reboot),
-        SaFlags::SA_RESTART,
-        signal::SigSet::empty(),
-    );
-    signal::sigaction(Signal::SIGUSR1, &sa)?;
-    Ok(())
+    unsafe {
+        let sa = SigAction::new(
+            SigHandler::Handler(handle_reboot),
+            SaFlags::SA_RESTART,
+            signal::SigSet::empty(),
+        );
+        signal::sigaction(Signal::SIGUSR1, &sa)?;
+        Ok(())
+    }
 }
 
 // ── Async-signal-safe handlers ───────────────────────────────────────────────

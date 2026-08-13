@@ -321,9 +321,8 @@ fn dispatch(cmd: ControlCommand, sm: &Arc<Mutex<ServiceManager>>) -> CtlResponse
 
         ControlCommand::Enable { service } => {
             let enabled_dir = Path::new(ENABLED_DIR);
-            match fs::create_dir_all(enabled_dir) {
-                Err(e) => return CtlResponse::err(format!("Cannot create enabled dir: {}", e)),
-                Ok(_) => {}
+            if let Err(e) = fs::create_dir_all(enabled_dir) {
+                return CtlResponse::err(format!("Cannot create enabled dir: {}", e));
             }
             let marker = enabled_dir.join(&service);
             match fs::write(&marker, b"") {

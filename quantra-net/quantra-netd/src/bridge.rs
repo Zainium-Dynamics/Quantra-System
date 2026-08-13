@@ -28,10 +28,12 @@ use crate::exec::Exec;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum BondMode {
     /// Round-robin — balance across all slaves (default)
     BalanceRr,
     /// Active-backup — only one active slave, failover on link down
+    #[default]
     ActiveBackup,
     /// XOR balance — hash src+dst MAC
     BalanceXor,
@@ -59,18 +61,14 @@ impl BondMode {
     }
 }
 
-impl Default for BondMode {
-    fn default() -> Self {
-        Self::ActiveBackup
-    }
-}
-
 // ── MACVLAN modes ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum MacvlanMode {
     /// Bridge — macvlans can communicate with each other
+    #[default]
     Bridge,
     /// VEPA — all traffic goes to external switch
     Vepa,
@@ -88,12 +86,6 @@ impl MacvlanMode {
             Self::Private => "private",
             Self::Passthrough => "passthrough",
         }
-    }
-}
-
-impl Default for MacvlanMode {
-    fn default() -> Self {
-        Self::Bridge
     }
 }
 

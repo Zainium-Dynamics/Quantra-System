@@ -41,7 +41,7 @@ use std::time::Instant;
 /// 1.  `mounts::setup()`              — procfs, sysfs, devtmpfs, cgroups
 /// 2.  `logging::setup()`             — stderr + /overlayer/syshub/var/log/quantra-system/init.log
 /// 3.  `security::apparmor::load()`   — load all profiles from /overlayer/syshub/etc/apparmor.d/
-/// 3b. `security::lockdown()`         — kernel lockdown + mlockall
+///     3b. `security::lockdown()`         — kernel lockdown + mlockall
 /// 4.  `kernel::setup()`              — hostname, sysctl, modules, cgroup controllers
 /// 5.  `network::configure_all()`     — lo up, static IP or DHCP client spawn
 /// 6.  `signals::setup()` + reaper     — SA_RESTART handlers + pipe exit-code reaper

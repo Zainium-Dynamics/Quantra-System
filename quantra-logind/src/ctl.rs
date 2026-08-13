@@ -209,4 +209,3 @@ fn usage(msg: &str) -> ! {
 }
 
 // Bring in serde_json for the ctl binary
-use serde_json;

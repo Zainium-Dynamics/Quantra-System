@@ -35,13 +35,12 @@ pub async fn save_config(handle: &Handle) -> Result<()> {
     }
     let dns = read_dns_servers().unwrap_or_default();
     for route in &routes {
-        if route.destination == "default" {
-            if let Some(iface_name) = &route.interface {
-                if let Some(iface) = iface_map.get_mut(iface_name) {
-                    iface.gateway = route.gateway.clone();
-                    iface.dns = dns.clone();
-                }
-            }
+        if route.destination == "default"
+            && let Some(iface_name) = &route.interface
+            && let Some(iface) = iface_map.get_mut(iface_name)
+        {
+            iface.gateway = route.gateway.clone();
+            iface.dns = dns.clone();
         }
     }
     let current_cfg = read_config().unwrap_or_default();

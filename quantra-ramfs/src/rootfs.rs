@@ -1,3 +1,31 @@
+//! Root filesystem detection and mounting module
+//!
+//! Responsibilities:
+//! 1. Parse root device from kernel cmdline
+//! 2. Wait for device to appear in /dev (with retries)
+//! 3. Handle loop mount if loop= parameter provided (via raw ioctls — no losetup binary)
+//! 4. Mount the root filesystem to /mnt/root
+//! 5. Handle LABEL=, UUID=, and ISO/squashfs loop mounts
+//!
+//! # Loop Device Strategy
+//!
+//! The old implementation called `Command::new("losetup")` which fails in initramfs
+//! because the losetup binary lives on the root filesystem (not yet mounted).
+//!
+//! The new implementation uses raw Linux ioctls directly:
+//!
+//! | Step | Call | Purpose |
+//! |------|------|---------|
+//! | 1 | `open("/dev/loop-control", O_RDWR)` | Open loop controller |
+//! | 2 | `ioctl(LOOP_CTL_GET_FREE)` | Get next free loop device number N |
+//! | 3 | `open("/dev/loopN", O_RDWR)` | Open that loop device |
+//! | 4 | `open(image, O_RDONLY)` | Open squashfs image file |
+//! | 5 | `ioctl(LOOP_SET_FD, image_fd)` | Attach image to loop device |
+//! | 6 | `ioctl(LOOP_SET_STATUS64, &info)` | Set backing filename (cosmetic) |
+//! | 7 | return `"/dev/loopN"` | Used for mount(2) call |
+//!
+//! This is exactly what `losetup -f --show <file>` does internally.
+
 use crate::cmdline::Cmdline;
 use nix::mount::{MntFlags, MsFlags, mount, umount2};
 use std::ffi::CString;
@@ -6,34 +34,6 @@ use std::mem;
 use std::os::unix::fs::symlink;
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
-
-/// Root filesystem detection and mounting module
-///
-/// Responsibilities:
-/// 1. Parse root device from kernel cmdline
-/// 2. Wait for device to appear in /dev (with retries)
-/// 3. Handle loop mount if loop= parameter provided (via raw ioctls — no losetup binary)
-/// 4. Mount the root filesystem to /mnt/root
-/// 5. Handle LABEL=, UUID=, and ISO/squashfs loop mounts
-///
-/// # Loop Device Strategy
-///
-/// The old implementation called `Command::new("losetup")` which fails in initramfs
-/// because the losetup binary lives on the root filesystem (not yet mounted).
-///
-/// The new implementation uses raw Linux ioctls directly:
-///
-/// | Step | Call | Purpose |
-/// |------|------|---------|
-/// | 1 | `open("/dev/loop-control", O_RDWR)` | Open loop controller |
-/// | 2 | `ioctl(LOOP_CTL_GET_FREE)` | Get next free loop device number N |
-/// | 3 | `open("/dev/loopN", O_RDWR)` | Open that loop device |
-/// | 4 | `open(image, O_RDONLY)` | Open squashfs image file |
-/// | 5 | `ioctl(LOOP_SET_FD, image_fd)` | Attach image to loop device |
-/// | 6 | `ioctl(LOOP_SET_STATUS64, &info)` | Set backing filename (cosmetic) |
-/// | 7 | return `"/dev/loopN"` | Used for mount(2) call |
-///
-/// This is exactly what `losetup -f --show <file>` does internally.
 
 // ── Device path prefix constants ──────────────────────────────────────────────
 

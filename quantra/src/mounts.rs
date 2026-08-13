@@ -1,29 +1,28 @@
+//! PID 1 filesystem mounting module
+//!
+//! Mounts all essential pseudofilesystems and cgroups:
+//! - /proc - Kernel interface (process info, parameters)
+//! - /sys - Device and driver info
+//! - /sys/fs/cgroup - Control groups hierarchy
+//! - /dev - Device nodes
+//! - /run - Runtime data
+//! - /dev/pts - Pseudo-terminals
+//! - /dev/shm - Shared memory
+//! - /tmp - Temporary files
+//!
+//! Handles two contexts correctly:
+//! 1. Direct boot (no initramfs): mounts everything from scratch
+//! 2. Post-pivot_root: initramfs already MS_MOVE'd /proc, /sys, /dev, /run
+//!    → skip-if-mounted logic prevents EBUSY crashes
+//!
+//! NASA-grade invariant: mount success is VERIFIED via /proc/mounts,
+//! not inferred from syscall return code.
+
 /// Mount unit activator (loads from /overlayer/syshub/etc/quantra-system/mounts/)
 pub mod manager;
-/// PID 1 filesystem mounting module
-///
-/// Mounts all essential pseudofilesystems and cgroups:
-/// - /proc - Kernel interface (process info, parameters)
-/// - /sys - Device and driver info
-/// - /sys/fs/cgroup - Control groups hierarchy
-/// - /dev - Device nodes
-/// - /run - Runtime data
-/// - /dev/pts - Pseudo-terminals
-/// - /dev/shm - Shared memory
-
-///
 /// Mount units — declarative filesystem mount lifecycle
 pub mod unit;
 
-/// - /tmp - Temporary files
-///
-/// Handles two contexts correctly:
-/// 1. Direct boot (no initramfs): mounts everything from scratch
-/// 2. Post-pivot_root: initramfs already MS_MOVE'd /proc, /sys, /dev, /run
-///    → skip-if-mounted logic prevents EBUSY crashes
-///
-/// NASA-grade invariant: mount success is VERIFIED via /proc/mounts,
-/// not inferred from syscall return code.
 use anyhow::{Context, Result};
 use nix::mount::{MsFlags, mount};
 use std::fs;
@@ -214,12 +213,12 @@ fn mount_proc_first() -> Result<()> {
 #[inline]
 fn try_remount_root_rw() {
     // First: Check if root is SquashFS (Live/ISO system)
-    if let Some(fstype) = get_root_fstype() {
-        if fstype == "squashfs" {
-            log::info!("     Live System detected (SquashFS) — keeping Root as Read-Only");
-            log::info!("    (Write support can be added via OverlayFS if needed)");
-            return; // Non-fatal: just skip remount
-        }
+    if let Some(fstype) = get_root_fstype()
+        && fstype == "squashfs"
+    {
+        log::info!("     Live System detected (SquashFS) — keeping Root as Read-Only");
+        log::info!("    (Write support can be added via OverlayFS if needed)");
+        return; // Non-fatal: just skip remount
     }
 
     // Second: Try remount for normal installed systems

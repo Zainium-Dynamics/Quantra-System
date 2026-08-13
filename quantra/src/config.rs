@@ -48,12 +48,20 @@ pub struct FeaturesConfig {
     pub vt_support: bool,
 }
 
+// Referenced by #[serde(default = "...")] on SystemConfig/FeaturesConfig
+// above (both #[allow(dead_code)] themselves — same not-yet-wired-up config
+// schema situation, serde's derive calls these by name so they're not
+// actually dead, just unreachable from rustc's conservative dead-code walk
+// while nothing reads InitConfig::system/features yet).
+#[allow(dead_code)]
 fn default_max_open_files() -> u64 {
     65535
 }
+#[allow(dead_code)]
 fn default_oom_score() -> i32 {
     -1000
 }
+#[allow(dead_code)]
 fn bool_true() -> bool {
     true
 }

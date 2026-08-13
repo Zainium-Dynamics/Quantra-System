@@ -99,16 +99,16 @@ pub fn setup_private_devices() -> Result<()> {
     unshare(CloneFlags::CLONE_NEWNS).context("unshare(CLONE_NEWNS) for private_devices")?;
 
     for dev in &raw_devices {
-        if Path::new(dev).exists() {
-            if let Err(e) = mount(
+        if Path::new(dev).exists()
+            && let Err(e) = mount(
                 Some("/dev/null"),
                 *dev,
                 None::<&str>,
                 MsFlags::MS_BIND,
                 None::<&str>,
-            ) {
-                log::debug!("sandbox: bind /dev/null over {}: {} (non-fatal)", dev, e);
-            }
+            )
+        {
+            log::debug!("sandbox: bind /dev/null over {}: {} (non-fatal)", dev, e);
         }
     }
 
@@ -258,13 +258,12 @@ pub fn setup_protect_kernel_tunables() -> Result<()> {
             MsFlags::MS_BIND | MsFlags::MS_RDONLY | MsFlags::MS_REMOUNT,
             None::<&str>,
         )
-        .map_err(|e| {
+        .inspect_err(|&e| {
             log::debug!(
                 "sandbox: protect_kernel_tunables: {} RO failed: {} (non-fatal)",
                 path,
                 e
             );
-            e
         })
         .ok();
     }
@@ -471,10 +470,10 @@ pub fn ensure_service_directory(dir_path: &str, uid: Option<u32>, gid: Option<u3
     // chown to service uid/gid
     if uid.is_some() || gid.is_some() {
         let u = uid
-            .map(|n| nix::unistd::Uid::from_raw(n))
+            .map(nix::unistd::Uid::from_raw)
             .unwrap_or(nix::unistd::Uid::from_raw(u32::MAX));
         let g = gid
-            .map(|n| nix::unistd::Gid::from_raw(n))
+            .map(nix::unistd::Gid::from_raw)
             .unwrap_or(nix::unistd::Gid::from_raw(u32::MAX));
         nix::unistd::chown(dir_path, uid.map(|_| u), gid.map(|_| g))
             .with_context(|| format!("chown '{}' to uid={:?} gid={:?}", dir_path, uid, gid))?;
@@ -691,13 +690,12 @@ pub fn setup_proc_subset_pid() -> Result<()> {
         MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC,
         Some("subset=pid"),
     )
-    .map_err(|e| {
+    .inspect_err(|&e| {
         // Non-fatal on kernels < 5.8
         log::warn!(
             "sandbox: proc_subset=pid: {} (requires kernel 5.8+, non-fatal)",
             e
         );
-        e
     })
     .ok();
     Ok(())
@@ -757,10 +755,10 @@ pub fn allocate_dynamic_uid() -> Result<(u32, u32)> {
     if let Ok(content) = fs::read_to_string("/overlayer/syshub/etc/passwd") {
         for line in content.lines() {
             let fields: Vec<&str> = line.split(':').collect();
-            if fields.len() >= 3 {
-                if let Ok(uid) = fields[2].parse::<u32>() {
-                    used.insert(uid);
-                }
+            if fields.len() >= 3
+                && let Ok(uid) = fields[2].parse::<u32>()
+            {
+                used.insert(uid);
             }
         }
     }

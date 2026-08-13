@@ -932,6 +932,11 @@ pub fn parse_dns_from_content(content: &str) -> Vec<String> {
         .collect()
 }
 
+/// Public alias used by ipv6.rs — reads MAC from /sys/class/net/<iface>/address.
+pub fn read_mac_from_sysfs(iface: &str) -> Result<[u8; 6]> {
+    get_mac(iface)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1189,9 +1194,4 @@ mod tests {
         let parsed = parse_dns_from_content(&content);
         assert_eq!(parsed, vec!["8.8.8.8", "1.1.1.1"]);
     }
-}
-
-/// Public alias used by ipv6.rs — reads MAC from /sys/class/net/<iface>/address.
-pub fn read_mac_from_sysfs(iface: &str) -> Result<[u8; 6]> {
-    get_mac(iface)
 }

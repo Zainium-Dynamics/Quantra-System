@@ -1,65 +1,65 @@
-/// Root filesystem switching — OverlayFS-aware pivot_root + init discovery
-///
-/// # Architecture
-///
-/// Boot flow as seen by this module:
-///
-/// ```text
-///   /zairoot           ← physical disk partition (Phase 4)
-///   /new_root          ← OverlayFS merged view  (Phase 4.5)
-///   pivot_root         ← /new_root becomes /     (Phase 6)
-///   execv quantra      ← PID 1 takes over
-/// ```
-///
-/// After OverlayFS is mounted, `discover_boot_target` searches `/new_root`
-/// for the init binary. `pivot_to_root` then hard-wires to `/new_root` as the
-/// switch target regardless of where the physical disk was mounted.
-///
-/// # Mount Target Priority  (physical disk, Phase 4)
-///
-/// ```
-/// /zairoot    ← Zainium OS preferred
-/// /mnt/root   ← Standard Linux initramfs (Arch, Gentoo, …)
-/// /sysroot    ← systemd initrd compat (Fedora, RHEL, …)
-/// /newroot    ← BusyBox-style initramfs
-/// ```
-///
-/// # Init Binary Priority  (inside /new_root, Phase 5)
-///
-/// Paths below are relative to `/new_root`. Under Zainium's "Option B"
-/// architecture (see `overlay.rs`), the OverlayFS merge of `overlayer/syshub`
-/// + `overlayer/zaisys` lands at `/new_root/overlayer/syshub`, **not** at
-/// `/new_root` itself — there is no flattened `/bin`, `/sbin`, `/usr` at the
-/// tmpfs root. Zainium-native candidates (Phase 1, Phase 3) are therefore
-/// prefixed with `/overlayer/syshub`. Phase 2 is the exception: it exists to
-/// chainload a *foreign* Linux disk that never went through
-/// `overlay::mount_overlay` at all (its `overlayer/syshub` sanity check
-/// failed, so `new_root` falls back to the raw physical mount with a normal
-/// FHS layout) — those candidates stay unprefixed on purpose.
-///
-/// ```
-/// Phase 1 — Zainium OS Core  (highest priority):
-///   /overlayer/syshub/engine/quantra        ← Zainium PID 1 (normal boot)
-///   /overlayer/syshub/engine/s6-quantra     ← Zainium s6-based fallback
-///
-/// Phase 2 — Standard Linux compatibility (foreign disk, no overlayer/syshub):
-///   /sbin/init                              ← Debian/Ubuntu/Arch/Gentoo
-///   /usr/lib/systemd/systemd               ← Fedora/RHEL/openSUSE
-///   /lib/systemd/systemd                   ← Debian systemd alternate path
-///   /usr/sbin/init                         ← Some BSDs / older distros
-///
-/// Phase 3 — Emergency rescue shells (ship inside syshub):
-///   /overlayer/syshub/bin/fish    ← Advanced rescue (colours, autocompletion)
-///   /overlayer/syshub/bin/bash    ← Standard rescue shell
-///   /overlayer/syshub/bin/zsh     ← Alternative rescue shell
-///   /overlayer/syshub/bin/sh      ← Absolute last resort (dash / busybox sh)
-/// ```
-///
-/// This same prefixing makes the `zainium.overlay=off` / OverlayFS-mount-
-/// failure fallback work for free: in both cases `new_root` becomes
-/// `/zairoot` directly, which — being the real Zainium disk — already has
-/// `overlayer/syshub` as a genuine subdirectory, so `{new_root}/overlayer/syshub/engine/quantra`
-/// resolves correctly without any special-casing here.
+//! Root filesystem switching — OverlayFS-aware pivot_root + init discovery
+//!
+//! # Architecture
+//!
+//! Boot flow as seen by this module:
+//!
+//! ```text
+//!   /zairoot           ← physical disk partition (Phase 4)
+//!   /new_root          ← OverlayFS merged view  (Phase 4.5)
+//!   pivot_root         ← /new_root becomes /     (Phase 6)
+//!   execv quantra      ← PID 1 takes over
+//! ```
+//!
+//! After OverlayFS is mounted, `discover_boot_target` searches `/new_root`
+//! for the init binary. `pivot_to_root` then hard-wires to `/new_root` as the
+//! switch target regardless of where the physical disk was mounted.
+//!
+//! # Mount Target Priority  (physical disk, Phase 4)
+//!
+//! ```
+//! /zairoot    ← Zainium OS preferred
+//! /mnt/root   ← Standard Linux initramfs (Arch, Gentoo, …)
+//! /sysroot    ← systemd initrd compat (Fedora, RHEL, …)
+//! /newroot    ← BusyBox-style initramfs
+//! ```
+//!
+//! # Init Binary Priority  (inside /new_root, Phase 5)
+//!
+//! Paths below are relative to `/new_root`. Under Zainium's "Option B"
+//! architecture (see `overlay.rs`), the OverlayFS merge of `overlayer/syshub`
+//! and `overlayer/zaisys` lands at `/new_root/overlayer/syshub`, **not** at
+//! `/new_root` itself — there is no flattened `/bin`, `/sbin`, `/usr` at the
+//! tmpfs root. Zainium-native candidates (Phase 1, Phase 3) are therefore
+//! prefixed with `/overlayer/syshub`. Phase 2 is the exception: it exists to
+//! chainload a *foreign* Linux disk that never went through
+//! `overlay::mount_overlay` at all (its `overlayer/syshub` sanity check
+//! failed, so `new_root` falls back to the raw physical mount with a normal
+//! FHS layout) — those candidates stay unprefixed on purpose.
+//!
+//! ```
+//! Phase 1 — Zainium OS Core  (highest priority):
+//!   /overlayer/syshub/engine/quantra        ← Zainium PID 1 (normal boot)
+//!   /overlayer/syshub/engine/s6-quantra     ← Zainium s6-based fallback
+//!
+//! Phase 2 — Standard Linux compatibility (foreign disk, no overlayer/syshub):
+//!   /sbin/init                              ← Debian/Ubuntu/Arch/Gentoo
+//!   /usr/lib/systemd/systemd               ← Fedora/RHEL/openSUSE
+//!   /lib/systemd/systemd                   ← Debian systemd alternate path
+//!   /usr/sbin/init                         ← Some BSDs / older distros
+//!
+//! Phase 3 — Emergency rescue shells (ship inside syshub):
+//!   /overlayer/syshub/bin/fish    ← Advanced rescue (colours, autocompletion)
+//!   /overlayer/syshub/bin/bash    ← Standard rescue shell
+//!   /overlayer/syshub/bin/zsh     ← Alternative rescue shell
+//!   /overlayer/syshub/bin/sh      ← Absolute last resort (dash / busybox sh)
+//! ```
+//!
+//! This same prefixing makes the `zainium.overlay=off` / OverlayFS-mount-
+//! failure fallback work for free: in both cases `new_root` becomes
+//! `/zairoot` directly, which — being the real Zainium disk — already has
+//! `overlayer/syshub` as a genuine subdirectory, so `{new_root}/overlayer/syshub/engine/quantra`
+//! resolves correctly without any special-casing here.
 use nix::mount::{MntFlags, MsFlags, mount, umount2};
 use nix::unistd::{chdir, chroot, execv, pivot_root};
 use std::ffi::CString;

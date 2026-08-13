@@ -218,7 +218,7 @@ pub fn apply_io_device_weight(name: &str, device: &str, weight: u32) -> Result<(
         return Ok(());
     }
 
-    let val = format!("{} {}", major_minor, weight.max(1).min(10000));
+    let val = format!("{} {}", major_minor, weight.clamp(1, 10000));
     std::fs::write(&path, &val)
         .map_err(|e| anyhow::anyhow!("io.weight device '{}': {}", device, e))?;
     log::debug!("cgroup io.weight='{}' for '{}'", val, name);

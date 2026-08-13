@@ -276,7 +276,7 @@ impl SeatManager {
                 // For DRM: set master to nobody so session loses modesetting control
                 if dev.kind == DeviceKind::Drm {
                     if let Some(fd) = dev.fd {
-                        const DRM_IOCTL_DROP_MASTER: libc::c_ulong = 0x64 | (0 << 8);
+                        const DRM_IOCTL_DROP_MASTER: libc::c_ulong = 0x64;
                         unsafe { libc::ioctl(fd, DRM_IOCTL_DROP_MASTER, 0) };
                     }
                 }
@@ -292,7 +292,7 @@ impl SeatManager {
                 dev.paused = false;
                 if dev.kind == DeviceKind::Drm {
                     if let Some(fd) = dev.fd {
-                        const DRM_IOCTL_SET_MASTER: libc::c_ulong = 0x1e | (0 << 8);
+                        const DRM_IOCTL_SET_MASTER: libc::c_ulong = 0x1e;
                         unsafe { libc::ioctl(fd, DRM_IOCTL_SET_MASTER, 0) };
                     }
                 }

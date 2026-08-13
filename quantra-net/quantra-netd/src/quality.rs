@@ -75,14 +75,13 @@ pub async fn measure_quality(
                     {
                         signal_strength = v as i32;
                     }
-                } else if let Some(rest) = t.strip_prefix("tx bitrate: ") {
-                    if let Some(v) = rest
+                } else if let Some(rest) = t.strip_prefix("tx bitrate: ")
+                    && let Some(v) = rest
                         .split_whitespace()
                         .next()
                         .and_then(|x| x.parse::<f32>().ok())
-                    {
-                        bitrate = v as u32;
-                    }
+                {
+                    bitrate = v as u32;
                 }
             }
         }
@@ -176,10 +175,10 @@ pub async fn monitor_interface_events(
         before_map.insert(iface.name.clone(), iface);
     }
     for iface in after {
-        if let Some(filter) = interface {
-            if iface.name != filter {
-                continue;
-            }
+        if let Some(filter) = interface
+            && iface.name != filter
+        {
+            continue;
         }
         if let Some(prev) = before_map.get(&iface.name) {
             if prev.state != iface.state {
@@ -220,10 +219,10 @@ pub async fn diagnose_interface(handle: &Handle, interface: Option<&str>) -> Res
     let interfaces = get_all_links(handle).await?;
     let mut filtered = Vec::new();
     for i in interfaces {
-        if let Some(iface) = interface {
-            if i.name != iface {
-                continue;
-            }
+        if let Some(iface) = interface
+            && i.name != iface
+        {
+            continue;
         }
         filtered.push(i);
     }

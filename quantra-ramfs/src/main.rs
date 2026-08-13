@@ -299,7 +299,12 @@ fn main() -> ! {
                     libc::sync();
                     libc::reboot(libc::RB_AUTOBOOT);
                 }
-                loop {}
+                // reboot(2) does not return on success; this only runs if it
+                // somehow did anyway. Sleep instead of a busy-spin while the
+                // kernel actually reboots.
+                loop {
+                    std::thread::sleep(Duration::from_secs(1));
+                }
             } else {
                 eprintln!(
                     "  WARN: fsck: {} — continuing (manual check recommended)",

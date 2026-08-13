@@ -48,6 +48,10 @@ pub struct TimerConfig {
     pub timer: TimerSpec,
 }
 
+// Several fields are TOML config schema (systemd-timer-style scheduling
+// options) not yet consumed by the timer-firing logic below -- parsed and
+// validated, not dead in the sense of "should be deleted".
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TimerSpec {
@@ -206,14 +210,13 @@ fn run_timer(timer: TimerSpec, tx: mpsc::Sender<String>) {
     info!("Timer '{}' started — unit={}", timer.name, timer.unit);
 
     // Persistent catch-up: if timer missed fires during downtime, fire immediately
-    if timer.persistent {
-        if let Some(ref spec_str) = timer.on_calendar {
-            if should_catch_up(&timer.name, spec_str) {
-                info!("Timer '{}': persistent catch-up fire", timer.name);
-                fire_timer(&timer.name, &timer.unit, &tx);
-                save_last_fired(&timer.name);
-            }
-        }
+    if timer.persistent
+        && let Some(ref spec_str) = timer.on_calendar
+        && should_catch_up(&timer.name, spec_str)
+    {
+        info!("Timer '{}': persistent catch-up fire", timer.name);
+        fire_timer(&timer.name, &timer.unit, &tx);
+        save_last_fired(&timer.name);
     }
 
     // on_boot_sec: fire once after N seconds from now
@@ -230,10 +233,10 @@ fn run_timer(timer: TimerSpec, tx: mpsc::Sender<String>) {
             Ok(spec) => loop {
                 let mut wait = spec.time_until_next();
                 // Apply randomized delay jitter
-                if let Some(jitter_max) = timer.randomized_delay_sec {
-                    if jitter_max > 0 {
-                        wait += Duration::from_secs(random_u64() % jitter_max);
-                    }
+                if let Some(jitter_max) = timer.randomized_delay_sec
+                    && jitter_max > 0
+                {
+                    wait += Duration::from_secs(random_u64() % jitter_max);
                 }
                 info!("Timer '{}': next fire in {}s", timer.name, wait.as_secs());
                 if !sleep_interruptibly(wait) {
@@ -256,10 +259,10 @@ fn run_timer(timer: TimerSpec, tx: mpsc::Sender<String>) {
     if let Some(interval) = timer.on_unit_active_sec {
         loop {
             let mut wait = Duration::from_secs(interval);
-            if let Some(jitter_max) = timer.randomized_delay_sec {
-                if jitter_max > 0 {
-                    wait += Duration::from_secs(random_u64() % jitter_max);
-                }
+            if let Some(jitter_max) = timer.randomized_delay_sec
+                && jitter_max > 0
+            {
+                wait += Duration::from_secs(random_u64() % jitter_max);
             }
             if !sleep_interruptibly(wait) {
                 return;
@@ -482,7 +485,7 @@ impl CalendarSpec {
         // 1970-01-01 was Thursday → (epoch_days + 3) % 7 gives 0=Mon
         if let Some(wd) = self.weekday {
             let days_since_epoch = now_secs / 86400;
-            let current_wd = ((days_since_epoch + 3) % 7) as u64;
+            let current_wd = (days_since_epoch + 3) % 7;
             let target_wd = wd as u64;
             let mut days_ahead = (7 + target_wd - current_wd) % 7;
             if days_ahead == 0 && target_in_day <= secs_in_day {
@@ -739,11 +742,7 @@ fn watch_clock_change(timer: &TimerSpec, tx: &mpsc::Sender<String>) {
 
         // If wall clock advanced more than threshold seconds faster than
         // monotonic, the clock was set forward (NTP sync, manual set, etc.)
-        let diff = if wall_elapsed > mono_elapsed {
-            wall_elapsed - mono_elapsed
-        } else {
-            mono_elapsed - wall_elapsed
-        };
+        let diff = wall_elapsed.abs_diff(mono_elapsed);
 
         if diff > threshold {
             log::info!(

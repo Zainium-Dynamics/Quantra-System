@@ -31,17 +31,13 @@ pub enum SessionType {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SessionClass {
+    #[default]
     User,
     Greeter,    // Login manager (e.g. cosmic-greeter)
     LockScreen, // Screen locker
     Background, // System background session
-}
-
-impl Default for SessionClass {
-    fn default() -> Self {
-        Self::User
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

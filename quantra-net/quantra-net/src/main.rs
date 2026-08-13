@@ -890,7 +890,7 @@ fn render_response(response: NetResponse, cmd: &Commands) {
         NetResponse::Status(interfaces, mode, daemon_status) => {
             if let Commands::Status { json: true, .. } = cmd {
                 render_status_json(&interfaces, mode, daemon_status);
-            } else if matches!(cmd, Commands::Scan { .. }) {
+            } else if matches!(cmd, Commands::Scan) {
                 render_scan_view(&interfaces);
             } else {
                 if let Some(st) = daemon_status {
@@ -1033,12 +1033,12 @@ fn render_response(response: NetResponse, cmd: &Commands) {
         NetResponse::Success(message) => {
             if message.contains("restarted") {
                 // Extract interface name from message
-                if let Some(start) = message.find("'") {
-                    if let Some(end) = message[start + 1..].find("'") {
-                        let iface = &message[start + 1..start + 1 + end];
-                        render_link_restart_feedback(iface);
-                        return;
-                    }
+                if let Some(start) = message.find("'")
+                    && let Some(end) = message[start + 1..].find("'")
+                {
+                    let iface = &message[start + 1..start + 1 + end];
+                    render_link_restart_feedback(iface);
+                    return;
                 }
             }
             render_success(&message);

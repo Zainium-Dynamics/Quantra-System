@@ -156,29 +156,29 @@ impl ServiceSupervisor {
         if let Some(ref cgcfg) = self.service.cgroup_config {
             cgcfg.apply(&self.service.name);
         }
-        if let Some(ref quota) = self.service.cpu_quota {
-            if let Err(e) = cgroup::apply_cpu_quota(&self.service.name, quota) {
-                warn!(
-                    "cgroup cpu_quota for '{}': {} (non-fatal)",
-                    self.service.name, e
-                );
-            }
+        if let Some(ref quota) = self.service.cpu_quota
+            && let Err(e) = cgroup::apply_cpu_quota(&self.service.name, quota)
+        {
+            warn!(
+                "cgroup cpu_quota for '{}': {} (non-fatal)",
+                self.service.name, e
+            );
         }
-        if let Some(n) = self.service.tasks_max {
-            if let Err(e) = cgroup::apply_tasks_max(&self.service.name, n) {
-                warn!(
-                    "cgroup tasks_max for '{}': {} (non-fatal)",
-                    self.service.name, e
-                );
-            }
+        if let Some(n) = self.service.tasks_max
+            && let Err(e) = cgroup::apply_tasks_max(&self.service.name, n)
+        {
+            warn!(
+                "cgroup tasks_max for '{}': {} (non-fatal)",
+                self.service.name, e
+            );
         }
-        if let Some(ref swap) = self.service.memory_swap_max {
-            if let Err(e) = cgroup::apply_memory_swap_max(&self.service.name, swap) {
-                warn!(
-                    "cgroup memory_swap_max for '{}': {} (non-fatal)",
-                    self.service.name, e
-                );
-            }
+        if let Some(ref swap) = self.service.memory_swap_max
+            && let Err(e) = cgroup::apply_memory_swap_max(&self.service.name, swap)
+        {
+            warn!(
+                "cgroup memory_swap_max for '{}': {} (non-fatal)",
+                self.service.name, e
+            );
         }
 
         // IODeviceWeight and IODeviceLatencyTargetSec
@@ -387,15 +387,14 @@ impl ServiceSupervisor {
                         "Service '{}' readiness socket present: {}",
                         self.service.name, ready_socket
                     );
-                    if let Some(ref alias_path) = self.service.socket_alias {
-                        if alias_path != ready_socket {
-                            if let Err(e) = create_socket_alias(alias_path, ready_socket) {
-                                warn!(
-                                    "Could not create socket alias '{}' -> '{}': {}",
-                                    alias_path, ready_socket, e
-                                );
-                            }
-                        }
+                    if let Some(ref alias_path) = self.service.socket_alias
+                        && alias_path != ready_socket
+                        && let Err(e) = create_socket_alias(alias_path, ready_socket)
+                    {
+                        warn!(
+                            "Could not create socket alias '{}' -> '{}': {}",
+                            alias_path, ready_socket, e
+                        );
                     }
                 }
                 Ok(false) => warn!(
@@ -417,24 +416,24 @@ impl ServiceSupervisor {
         // For traditional daemons that fork to background and write a PID file.
         // We wait for the PID file to appear, then update our tracked PID to
         // the daemonized child's PID (the original fork exits after daemonizing).
-        if self.service.notify_type == NotifyType::BgProcess {
-            if let Some(ref pid_file) = self.service.pid_file {
-                let timeout = Duration::from_secs(self.service.timeout_start);
-                match wait_for_pid_file(pid_file, timeout) {
-                    Ok(daemon_pid) => {
-                        info!(
-                            "Service '{}' daemonized — PID file '{}' → PID {}",
-                            self.service.name, pid_file, daemon_pid
-                        );
-                        self.pid.store(daemon_pid as i32, Ordering::Release);
-                        let _ = cgroup::assign_pid_to_cgroup(&self.service.name, daemon_pid);
-                        dbus::register_service_global(&self.service.name, daemon_pid as i32, true);
-                    }
-                    Err(e) => warn!(
-                        "Service '{}' pid-file readiness failed: {} (tracking original PID)",
-                        self.service.name, e
-                    ),
+        if self.service.notify_type == NotifyType::BgProcess
+            && let Some(ref pid_file) = self.service.pid_file
+        {
+            let timeout = Duration::from_secs(self.service.timeout_start);
+            match wait_for_pid_file(pid_file, timeout) {
+                Ok(daemon_pid) => {
+                    info!(
+                        "Service '{}' daemonized — PID file '{}' → PID {}",
+                        self.service.name, pid_file, daemon_pid
+                    );
+                    self.pid.store(daemon_pid as i32, Ordering::Release);
+                    let _ = cgroup::assign_pid_to_cgroup(&self.service.name, daemon_pid);
+                    dbus::register_service_global(&self.service.name, daemon_pid as i32, true);
                 }
+                Err(e) => warn!(
+                    "Service '{}' pid-file readiness failed: {} (tracking original PID)",
+                    self.service.name, e
+                ),
             }
         }
 
@@ -906,10 +905,10 @@ fn restart_monitor(
 
         // Build environment: env_file base + service.environment overlay
         let mut restart_env: HashMap<String, String> = HashMap::new();
-        if let Some(ref ef) = svc.env_file {
-            if let Ok(pairs) = load_env_file(ef) {
-                restart_env.extend(pairs);
-            }
+        if let Some(ref ef) = svc.env_file
+            && let Ok(pairs) = load_env_file(ef)
+        {
+            restart_env.extend(pairs);
         }
         if let Some(ref svc_env) = svc.environment {
             restart_env.extend(svc_env.clone());
@@ -1170,10 +1169,11 @@ fn wait_for_pid_file(pid_file_path: &str, timeout: Duration) -> anyhow::Result<u
 
         if let Ok(content) = fs::read_to_string(pid_file_path) {
             let trimmed = content.trim();
-            if let Ok(pid) = trimmed.parse::<u32>() {
-                if pid > 0 && proc_exists(pid) {
-                    return Ok(pid);
-                }
+            if let Ok(pid) = trimmed.parse::<u32>()
+                && pid > 0
+                && proc_exists(pid)
+            {
+                return Ok(pid);
             }
         }
 
@@ -1354,84 +1354,6 @@ fn run_with_timeout(mut cmd: std::process::Command, timeout: Duration) -> anyhow
             }
             Err(e) => anyhow::bail!("wait error: {}", e),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_signal_hup() {
-        assert_eq!(parse_signal_name("HUP"), Some(Signal::SIGHUP));
-    }
-
-    #[test]
-    fn parse_signal_with_sig_prefix() {
-        assert_eq!(parse_signal_name("SIGTERM"), Some(Signal::SIGTERM));
-    }
-
-    #[test]
-    fn parse_signal_usr1() {
-        assert_eq!(parse_signal_name("USR1"), Some(Signal::SIGUSR1));
-    }
-
-    #[test]
-    fn parse_signal_unknown_returns_none() {
-        assert!(parse_signal_name("BOGUS").is_none());
-    }
-
-    /// Helper: parse env content from string (mirrors load_env_file logic)
-    fn parse_env_content(content: &str) -> HashMap<String, String> {
-        let mut map = HashMap::new();
-        for line in content.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let line = line.strip_prefix("export ").unwrap_or(line).trim();
-            if let Some((key, value)) = line.split_once('=') {
-                let key = key.trim().to_string();
-                let value = value.trim().trim_matches('"').to_string();
-                if !key.is_empty() {
-                    map.insert(key, value);
-                }
-            }
-        }
-        map
-    }
-
-    #[test]
-    fn env_parse_simple_key_value() {
-        let map = parse_env_content("FOO=bar\nBAZ=123");
-        assert_eq!(map.get("FOO").unwrap(), "bar");
-        assert_eq!(map.get("BAZ").unwrap(), "123");
-    }
-
-    #[test]
-    fn env_parse_skips_comments_and_empty() {
-        let map = parse_env_content("# comment\n\nFOO=bar\n  # another\n");
-        assert_eq!(map.len(), 1);
-        assert_eq!(map.get("FOO").unwrap(), "bar");
-    }
-
-    #[test]
-    fn env_parse_strips_export_prefix() {
-        let map = parse_env_content("export FOO=bar\nexport BAZ=qux");
-        assert_eq!(map.get("FOO").unwrap(), "bar");
-        assert_eq!(map.get("BAZ").unwrap(), "qux");
-    }
-
-    #[test]
-    fn env_parse_strips_quotes() {
-        let map = parse_env_content("FOO=\"hello world\"");
-        assert_eq!(map.get("FOO").unwrap(), "hello world");
-    }
-
-    #[test]
-    fn env_parse_handles_value_with_equals() {
-        let map = parse_env_content("OPTS=--flag=value");
-        assert_eq!(map.get("OPTS").unwrap(), "--flag=value");
     }
 }
 
@@ -1669,4 +1591,82 @@ fn resolve_seccomp_allowlist(svc: &super::types::Service) -> Vec<libc::c_long> {
         libc::SYS_exit_group,
     ];
     base
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_signal_hup() {
+        assert_eq!(parse_signal_name("HUP"), Some(Signal::SIGHUP));
+    }
+
+    #[test]
+    fn parse_signal_with_sig_prefix() {
+        assert_eq!(parse_signal_name("SIGTERM"), Some(Signal::SIGTERM));
+    }
+
+    #[test]
+    fn parse_signal_usr1() {
+        assert_eq!(parse_signal_name("USR1"), Some(Signal::SIGUSR1));
+    }
+
+    #[test]
+    fn parse_signal_unknown_returns_none() {
+        assert!(parse_signal_name("BOGUS").is_none());
+    }
+
+    /// Helper: parse env content from string (mirrors load_env_file logic)
+    fn parse_env_content(content: &str) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let line = line.strip_prefix("export ").unwrap_or(line).trim();
+            if let Some((key, value)) = line.split_once('=') {
+                let key = key.trim().to_string();
+                let value = value.trim().trim_matches('"').to_string();
+                if !key.is_empty() {
+                    map.insert(key, value);
+                }
+            }
+        }
+        map
+    }
+
+    #[test]
+    fn env_parse_simple_key_value() {
+        let map = parse_env_content("FOO=bar\nBAZ=123");
+        assert_eq!(map.get("FOO").unwrap(), "bar");
+        assert_eq!(map.get("BAZ").unwrap(), "123");
+    }
+
+    #[test]
+    fn env_parse_skips_comments_and_empty() {
+        let map = parse_env_content("# comment\n\nFOO=bar\n  # another\n");
+        assert_eq!(map.len(), 1);
+        assert_eq!(map.get("FOO").unwrap(), "bar");
+    }
+
+    #[test]
+    fn env_parse_strips_export_prefix() {
+        let map = parse_env_content("export FOO=bar\nexport BAZ=qux");
+        assert_eq!(map.get("FOO").unwrap(), "bar");
+        assert_eq!(map.get("BAZ").unwrap(), "qux");
+    }
+
+    #[test]
+    fn env_parse_strips_quotes() {
+        let map = parse_env_content("FOO=\"hello world\"");
+        assert_eq!(map.get("FOO").unwrap(), "hello world");
+    }
+
+    #[test]
+    fn env_parse_handles_value_with_equals() {
+        let map = parse_env_content("OPTS=--flag=value");
+        assert_eq!(map.get("OPTS").unwrap(), "--flag=value");
+    }
 }

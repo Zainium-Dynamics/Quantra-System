@@ -446,18 +446,18 @@ fn render_response(resp: &CtlResponse, cmd: &Cmd) {
         Cmd::IsStarted { .. } => {
             // The daemon sends back exit_code in data; mirror that as process exit
             println!("{} {}", icon, resp.message);
-            if let Some(data) = &resp.data {
-                if let Some(code) = data["exit_code"].as_i64() {
-                    std::process::exit(code as i32);
-                }
+            if let Some(data) = &resp.data
+                && let Some(code) = data["exit_code"].as_i64()
+            {
+                std::process::exit(code as i32);
             }
         }
         Cmd::IsFailed { .. } => {
             println!("{} {}", icon, resp.message);
-            if let Some(data) = &resp.data {
-                if let Some(code) = data["exit_code"].as_i64() {
-                    std::process::exit(code as i32);
-                }
+            if let Some(data) = &resp.data
+                && let Some(code) = data["exit_code"].as_i64()
+            {
+                std::process::exit(code as i32);
             }
         }
         _ => {
@@ -522,23 +522,23 @@ fn render_status(resp: &CtlResponse) {
         }
     );
 
-    if let Some(log_lines) = data["log_tail"].as_array() {
-        if !log_lines.is_empty() {
-            println!(
-                "\n  \x1b[38;5;244m── Last {} log lines ──────────────────────\x1b[0m",
-                log_lines.len()
-            );
-            for line in log_lines {
-                let l = line.as_str().unwrap_or("");
-                let color = if l.contains("ERROR") {
-                    "\x1b[31m"
-                } else if l.contains("WARN") {
-                    "\x1b[33m"
-                } else {
-                    "\x1b[38;5;244m"
-                };
-                println!("  {}{}\x1b[0m", color, l);
-            }
+    if let Some(log_lines) = data["log_tail"].as_array()
+        && !log_lines.is_empty()
+    {
+        println!(
+            "\n  \x1b[38;5;244m── Last {} log lines ──────────────────────\x1b[0m",
+            log_lines.len()
+        );
+        for line in log_lines {
+            let l = line.as_str().unwrap_or("");
+            let color = if l.contains("ERROR") {
+                "\x1b[31m"
+            } else if l.contains("WARN") {
+                "\x1b[33m"
+            } else {
+                "\x1b[38;5;244m"
+            };
+            println!("  {}{}\x1b[0m", color, l);
         }
     }
     println!();
@@ -586,10 +586,10 @@ fn render_tree(resp: &CtlResponse) {
         println!("\x1b[31m✗\x1b[0m {}", resp.message);
         return;
     }
-    if let Some(data) = &resp.data {
-        if let Some(tree) = data["tree"].as_str() {
-            println!("\n\x1b[1;38;5;39m{}\x1b[0m\n", tree);
-        }
+    if let Some(data) = &resp.data
+        && let Some(tree) = data["tree"].as_str()
+    {
+        println!("\n\x1b[1;38;5;39m{}\x1b[0m\n", tree);
     }
 }
 
@@ -598,29 +598,26 @@ fn render_list(resp: &CtlResponse) {
         println!("\x1b[31m✗\x1b[0m {}", resp.message);
         return;
     }
-    println!(
-        "\n  \x1b[1m{:<24} {:<10} {}\x1b[0m",
-        "SERVICE", "STATE", "PID"
-    );
+    println!("\n  \x1b[1m{:<24} {:<10} PID\x1b[0m", "SERVICE", "STATE");
     println!("  \x1b[38;5;244m{}\x1b[0m", "─".repeat(44));
-    if let Some(data) = &resp.data {
-        if let Some(services) = data["services"].as_array() {
-            for svc in services {
-                let name = svc["name"].as_str().unwrap_or("?");
-                let running = svc["running"].as_bool().unwrap_or(false);
-                let pid = svc["pid"].as_i64().unwrap_or(-1);
-                let state_str = if running {
-                    "\x1b[32mrunning\x1b[0m"
-                } else {
-                    "\x1b[90mstopped\x1b[0m"
-                };
-                let pid_str = if pid > 0 {
-                    pid.to_string()
-                } else {
-                    "—".into()
-                };
-                println!("  {:<24} {:<18} {}", name, state_str, pid_str);
-            }
+    if let Some(data) = &resp.data
+        && let Some(services) = data["services"].as_array()
+    {
+        for svc in services {
+            let name = svc["name"].as_str().unwrap_or("?");
+            let running = svc["running"].as_bool().unwrap_or(false);
+            let pid = svc["pid"].as_i64().unwrap_or(-1);
+            let state_str = if running {
+                "\x1b[32mrunning\x1b[0m"
+            } else {
+                "\x1b[90mstopped\x1b[0m"
+            };
+            let pid_str = if pid > 0 {
+                pid.to_string()
+            } else {
+                "—".into()
+            };
+            println!("  {:<24} {:<18} {}", name, state_str, pid_str);
         }
     }
     println!();
@@ -631,10 +628,10 @@ fn render_metrics(resp: &CtlResponse) {
         println!("\x1b[31m✗\x1b[0m {}", resp.message);
         return;
     }
-    if let Some(data) = &resp.data {
-        if let Some(prom) = data["prometheus"].as_str() {
-            println!("\n\x1b[38;5;39m{}\x1b[0m", prom);
-        }
+    if let Some(data) = &resp.data
+        && let Some(prom) = data["prometheus"].as_str()
+    {
+        println!("\n\x1b[38;5;39m{}\x1b[0m", prom);
     }
 }
 

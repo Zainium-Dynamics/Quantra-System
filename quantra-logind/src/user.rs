@@ -450,10 +450,11 @@ fn remove_user_ipc(uid: u32) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Ok(meta) = fs::metadata(&path) {
-                if {
+                let res = {
                     use std::os::unix::fs::MetadataExt;
                     meta.uid() == uid || (meta.gid() == uid && meta.mode() & 0o2 != 0)
-                } {
+                };
+                if res {
                     fs::remove_file(&path).ok();
                     log::debug!("IPC cleanup: removed {:?}", path);
                 }

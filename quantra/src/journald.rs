@@ -53,13 +53,12 @@ impl Priority {
     #[allow(dead_code)]
     pub fn from_prefix(line: &str) -> (Self, &str) {
         // Syslog-style prefix: <N> where N is priority (0-7)
-        if line.starts_with('<') {
-            if let Some(end) = line.find('>') {
-                if let Ok(n) = line[1..end].parse::<u8>() {
-                    let rest = &line[end + 1..];
-                    return (Self::from_u8(n & 7), rest);
-                }
-            }
+        if line.starts_with('<')
+            && let Some(end) = line.find('>')
+            && let Ok(n) = line[1..end].parse::<u8>()
+        {
+            let rest = &line[end + 1..];
+            return (Self::from_u8(n & 7), rest);
         }
         // Keyword prefixes
         if line.starts_with("ERROR") || line.starts_with("ERRO") || line.starts_with("[error]") {
@@ -156,10 +155,10 @@ impl JournalWriter {
         let _guard = self.lock.lock().unwrap();
 
         // Rotate if over size limit
-        if let Ok(meta) = fs::metadata(self.path.as_str()) {
-            if meta.len() > MAX_JOURNAL_BYTES {
-                self.rotate()?;
-            }
+        if let Ok(meta) = fs::metadata(self.path.as_str())
+            && meta.len() > MAX_JOURNAL_BYTES
+        {
+            self.rotate()?;
         }
 
         let mut file = OpenOptions::new()
