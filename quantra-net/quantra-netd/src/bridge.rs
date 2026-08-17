@@ -378,11 +378,18 @@ mod tests {
         assert!(validate_iface_name("br/0").is_err());
     }
 
-    #[test]
-    fn vlan_id_zero_rejected() {
-        // Can't await in test — just check the error path logic
-        assert!(0u16 == 0); // sanity
-        assert!(4095u16 > 4094);
+    #[tokio::test]
+    async fn vlan_id_zero_rejected() {
+        let exec = crate::exec::MockExec::default();
+        let err = vlan_create(&exec, "vlan0", "eth0", 0).await.unwrap_err();
+        assert!(err.to_string().contains("out of range"));
+    }
+
+    #[tokio::test]
+    async fn vlan_id_too_large_rejected() {
+        let exec = crate::exec::MockExec::default();
+        let err = vlan_create(&exec, "vlan0", "eth0", 4095).await.unwrap_err();
+        assert!(err.to_string().contains("out of range"));
     }
 
     #[test]

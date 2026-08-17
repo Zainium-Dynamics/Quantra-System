@@ -546,7 +546,9 @@ impl Interface for Login1Manager {
                     let pid = match args.first().and_then(|v| v.as_u32()) {
                         Some(p) => p,
                         None => {
-                            return Err(MethodError::invalid_args("Expected a single u32 argument"));
+                            return Err(MethodError::invalid_args(
+                                "Expected a single u32 argument",
+                            ));
                         }
                     };
 
@@ -627,7 +629,9 @@ impl Interface for Login1Manager {
                     let uid = match args.first().and_then(|v| v.as_u32()) {
                         Some(u) => u,
                         None => {
-                            return Err(MethodError::invalid_args("Expected a single u32 argument"));
+                            return Err(MethodError::invalid_args(
+                                "Expected a single u32 argument",
+                            ));
                         }
                     };
 
