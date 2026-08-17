@@ -1,205 +1,118 @@
-# QUANTRA v5 — Zainium OS PID 1 Init System
+# quantra — Zainium OS PID 1
 
-> **The world's only memory-safe, cryptographically-verified PID 1 with built-in healthchecks.**
+**Version:** 6.0.0 · **License:** MIT · **Target:** `x86_64-unknown-linux-musl`
 
-**Author:** Ali Zain  
-**Version:** 5.0  
-**Language:** Rust (100% — zero unsafe in hot path)  
-**License:** Zainium OS Project
+`quantra` is the init daemon (PID 1) for Zainium OS: parses service TOML
+units, resolves dependencies, starts services in dependency-ordered waves,
+applies cgroup v2 / AppArmor / seccomp, and supervises restarts and
+health checks. Written in Rust, no `unsafe` outside the syscall-boundary
+code that PID 1 inherently needs (`fork`/`exec`/`setuid`/cgroup/seccomp
+plumbing).
 
----
+## Boot sequence
 
-## What Is Quantra?
+From `src/main.rs`'s own phase ordering (the numbering has a real gap —
+phase 11 doesn't exist in the code, phases jump 10 → 12):
 
-Quantra is the core initialization daemon (PID 1) engineered exclusively for Zainium OS.
-Built entirely in Rust, it replaces traditional init systems with:
-
-- **Zero-cost memory safety** — no buffer overflows, use-after-free, or data races by design
-- **Sub-100ms boot times** — 12-phase parallel startup with BFS wave dependency scheduling
-- **Container-grade service isolation** — cgroup v2, AppArmor, seccomp, namespaces
-- **Docker-style healthchecks** — the *only* init system with native post-start health monitoring
-- **Cryptographic boot chain** — the *only* init system that verifies its own binary before exec
-
----
-
-## Feature Comparison — Quantra v5 vs The World
-
-| Feature                        | Quantra v5 | systemd | dinit  | s6     | runit  |
-|-------------------------------|:----------:|:-------:|:------:|:------:|:------:|
-| **Language**                   | Rust       | C       | C++    | C      | C      |
-| **Memory Safety**              | ✅ Rust    | ❌      | ❌     | ❌     | ❌     |
-| **Cryptographic Boot Chain**   | ✅ SHA-256 | ❌      | ❌     | ❌     | ❌     |
-| **Service Healthcheck**        | ✅ Native  | ❌      | ❌     | ❌     | ❌     |
-| **Docker-style** `HEALTHCHECK` | ✅         | ❌      | ❌     | ❌     | ❌     |
-| **cgroup v2 isolation**        | ✅         | ✅      | ❌     | ❌     | ❌     |
-| **Memory limit per service**   | ✅ memory.max | ✅   | ❌     | ❌     | ❌     |
-| **CPU weight per service**     | ✅ cpu.weight | ✅   | ❌     | ❌     | ❌     |
-| **Conditional dependencies**   | ✅ hardware-present: | ❌ | ❌ | ❌  | ❌     |
-| **AppArmor per service**       | ✅         | ✅      | ❌     | ❌     | ❌     |
-| **seccomp-bpf profiles**       | ✅ Named   | ✅      | ❌     | ❌     | ❌     |
-| **sd_notify READY=1**          | ✅         | ✅      | ✅     | ❌     | ❌     |
-| **BgProcess (PID file)**       | ✅         | ✅      | ✅     | ✅     | ✅     |
-| **Watchdog heartbeat**         | ✅         | ✅      | ✅     | ❌     | ❌     |
-| **Crash-loop breaker**         | ✅         | ✅      | ✅     | ✅     | ❌     |
-| **chain_to pipeline**          | ✅         | partial | ✅     | ❌     | ❌     |
-| **env_file loading**           | ✅ KEY=VAL | ✅      | ✅     | ❌     | ❌     |
-| **rlimit per service**         | ✅ table   | ✅      | ✅     | ❌     | ❌     |
-| **Milestone dependencies**     | ✅         | ✅ Wants | ✅    | ❌     | ❌     |
-| **Socket activation**          | ✅         | ✅      | ❌     | ✅     | ❌     |
-| **Prometheus Metrics**         | ✅ Built-in| ❌      | ❌     | ❌     | ❌     |
-| **JSON structured logging**    | ✅ RFC3339 | partial | ❌     | ❌     | ❌     |
-| **D-Bus org.freedesktop.systemd1** | stub  | ✅      | ❌     | ❌     | ❌     |
-| **Timer units (cron)**         | ✅ Native  | ✅      | ❌     | ❌     | ❌     |
-| **Boot-enable markers**        | ✅         | ✅      | ✅     | ✅     | ✅     |
-| **Binary size**                | ~55 KB     | ~10 MB+ | ~200 KB | ~150 KB | ~30 KB |
-| **RSS at steady state**        | ~5 MB      | ~30 MB+ | ~3 MB | ~1 MB  | ~1 MB  |
-| **Target boot time**           | <100 ms    | 1–2s    | ~200ms | ~300ms | ~200ms |
-
----
-
-## v5 Architecture
-
-### Boot Sequence (12 Phases)
-
-```
-Kernel → quantra (PID 1)
-  │
-  ├─ Phase 1:  mounts::setup()              /proc /sys /dev /run + cgroup
-  ├─ Phase 2:  logging::setup()             stderr + /var/log/zainium/init.log [JSON opt]
-  ├─ Phase 3:  security::apparmor::load()   all profiles BEFORE any exec
-  ├─ Phase 4:  kernel::setup()              hostname / sysctl / modules
-  ├─ Phase 5:  network::configure_all()     lo up + DHCP (non-fatal)
-  ├─ Phase 6:  signals::setup()             SA_RESTART + SIGCHLD pipe reaper
-  ├─ Phase 7:  mounts::activate_all()       /data /home NFS mount units
-  ├─ Phase 8:  services::start_all()        BFS wave parallel start
-  │             ├─ Bootstrap lane: zai-netd → zai-net → console-shell
-  │             ├─ Filter: /etc/zainium/enabled/<name> markers
-  │             └─ Waves: cgroup + AppArmor + seccomp + notify + healthcheck
-  ├─ Phase 9:  control::start_socket()      Tokio async Unix socket
-  ├─ Phase 10: dbus::start_dbus_server()    org.freedesktop.systemd1 stub
-  ├─ Phase 11: timer::start_all_timers()    cron replacement
-  └─ Phase 12: launcher::start_post_boot()  LightDM / graphical bridge
+```text
+kernel → quantra (PID 1)
+  1.  mounts::setup()          procfs, sysfs, devtmpfs, cgroups
+  2.  logging setup            stderr + /overlayer/syshub/var/log/quantra-system/
+  3.  AppArmor profile load    before any service starts
+  3b. kernel lockdown + memory locking (PID 1 hardening)
+  4.  kernel parameters        hostname / sysctl / modules
+  5.  network interfaces       lo up + DHCP (non-fatal)
+  6.  signal handlers          SA_RESTART + SIGCHLD reaper thread
+  7.  mount units               user-space mounts from .../quantra-system/mounts/
+  8.  services::start_all()    dependency-ordered parallel waves
+  9.  control::start_socket()  Unix control socket (std-only, no tokio)
+  10. timer units              cron-style replacement
+  12. graphical launcher       optional display-manager bridge (cosmic-greeter)
 ```
 
-### Service Feature Pipeline (per service, per fork)
+### Service startup, per service
 
-```
-parse TOML → resolve conditional deps → validate catalog
-     ↓
-create cgroup slice → apply cgroup_config (memory.max / cpu.weight / io.weight)
-     ↓
-load env_file (KEY=VALUE) → build env overlay
-     ↓
-fork() ─────────────────────────────────────────────────────────────
-  Parent:                              Child (before exec):
-  assign PID to cgroup                  setgroups() → setgid() → setuid()
-  wait for readiness:                   chdir(working_dir)
-    simple / notify / bgprocess         apply rlimit (setrlimit)
-                                        AppArmor aa_change_onexec()
-                                        PR_SET_NO_NEW_PRIVS
-                                        seccomp_bpf filter
-                                        execve(command, args, env)
-     ↓
-  Start background threads:
-    restart_monitor — crash/exit detection
-    watchdog_thread — /proc/<pid> heartbeat
-    healthcheck_thread — command polling, failure threshold
+```text
+parse TOML → resolve dependencies → validate
+  → create cgroup slice → apply cgroup_config (memory/cpu/io weight)
+  → load env_file + environment overlay
+  → fork()
+      parent: assign PID to cgroup, wait for readiness
+              (simple / notify / bg-process)
+      child:  setgid → setuid → chdir(working_dir)
+              apply rlimit, AppArmor profile, PR_SET_NO_NEW_PRIVS,
+              seccomp filter → execve(command, args, env)
+  → background threads: restart monitor, watchdog (if watchdog_sec > 0),
+    healthcheck poller (if [healthcheck] set)
 ```
 
-### Readiness Types (`notify_type`)
+### Readiness (`notify_type`)
 
-| Value          | Behaviour                                             |
-|----------------|-------------------------------------------------------|
-| `"simple"`     | Ready immediately after fork (default)                |
-| `"notify"`     | Waits for `READY=1` on `NOTIFY_SOCKET` (sd_notify)    |
-| `"bg-process"` | Polls `pid_file` for valid non-zero PID               |
+| Value | Behavior |
+|---|---|
+| `simple` | ready immediately after fork (default) |
+| `notify` | waits for `READY=1` on `NOTIFY_SOCKET` (sd_notify-compatible) |
+| `bg-process` | polls `pid_file` for a valid, non-zero PID |
 
-### Dependency Types
+### Dependency fields
 
-| Field                    | Behaviour                                            |
-|--------------------------|------------------------------------------------------|
-| `dependencies`           | Hard — must start first; boot fails if missing       |
-| `wants`                  | Soft — ordering only; failure doesn't block          |
-| `milestone`              | Wait for start; continue even if dep fails           |
-| `after`                  | Ordering only — no wait, no failure propagation      |
-| `conditional_dependencies` | Hardware-conditional — only promoted if path exists |
+| Field | Behavior |
+|---|---|
+| `dependencies` | hard — must be running first; boot fails if it can't start |
+| `wants` | soft — ordering only, failure doesn't block |
+| `milestone` | waited for, but boot continues even if it fails |
+| `after` | ordering only — no wait, no failure propagation |
+| `conditional_dependencies` | added as a hard dep only if a given kernel path exists |
 
----
-
-## quantra-ctl Reference
-
-### Lifecycle
+## quantra-ctl reference
 
 ```sh
-quantra-ctl start    <service>      # Start a service
-quantra-ctl stop     <service>      # Stop gracefully (stop_command → SIGTERM → SIGKILL)
-quantra-ctl restart  <service>      # Stop + Start
-quantra-ctl reload   <service>      # reload_command or reload_signal (SIGHUP default)
+# Lifecycle
+quantra-ctl start    <service>
+quantra-ctl stop     <service>      # stop_command → SIGTERM → SIGKILL
+quantra-ctl restart  <service>
+quantra-ctl reload   <service>      # reload_command, or reload_signal (default SIGHUP)
 quantra-ctl kill     <service>      # SIGKILL immediately
-```
 
-### Persistence
+# Persistence
+quantra-ctl enable   <service>      # create enabled/<service> marker
+quantra-ctl disable  <service>      # remove marker
 
-```sh
-quantra-ctl enable   <service>      # Create /etc/zainium/enabled/<service> marker
-quantra-ctl disable  <service>      # Remove marker (survives reboot disabled)
-```
-
-### Inspection
-
-```sh
+# Inspection
 quantra-ctl status   <service>      # JSON: pid, running, restarts, uptime
-quantra-ctl list                    # All services + state table
-quantra-ctl tree                    # Dependency graph as ASCII tree
+quantra-ctl list                    # all services + state
+quantra-ctl tree                    # dependency graph
 quantra-ctl metrics                 # Prometheus-format counters
+
+# Runtime control
+quantra-ctl signal   <sig> <svc>
+quantra-ctl setenv   KEY=VALUE
+quantra-ctl add-dep  <type> <a> <b>
+quantra-ctl rm-dep   <a> <b>
+
+# Scripting
+quantra-ctl is-started <service>    # exit 0 = running
+quantra-ctl is-failed  <service>    # exit 0 = stopped/failed
+
+# System
+quantra-ctl isolate   <target>      # stop everything except <target>
+quantra-ctl shutdown
 ```
 
-### Runtime Control
+## Service unit reference
 
-```sh
-quantra-ctl signal   <sig> <svc>   # Send any signal (USR1, HUP, TERM, ...)
-quantra-ctl setenv   KEY=VALUE      # Inject env var into all future spawns
-quantra-ctl add-dep  <type> <a> <b> # Runtime dependency injection
-quantra-ctl rm-dep   <a> <b>        # Runtime dependency removal
-```
-
-### Scripting / CI
-
-```sh
-quantra-ctl is-started <service>   # Exit 0 = running,  1 = not running
-quantra-ctl is-failed  <service>   # Exit 0 = stopped/failed, 1 = running
-```
-
-### System
-
-```sh
-quantra-ctl isolate   <target>     # Stop all services except <target>
-quantra-ctl shutdown               # Graceful system halt
-```
-
----
-
-## Service Configuration Reference
-
-### Minimal Example
-
-```toml
-name    = "my-service"
-command = "/usr/sbin/my-service"
-args    = ["--foreground"]
-restart = "on-failure"
-```
-
-### Full Example (all v5 fields)
+Fields below match `src/services/types.rs`'s `Service` struct — this is
+not an exhaustive list (see that file for `ready_socket`, `socket_alias`,
+`drop_capabilities`, `clear_ambient_caps`, and pre/post exec hooks too).
 
 ```toml
 name        = "my-service"
 description = "My production daemon"
-command     = "/usr/sbin/my-service"
-args        = ["--config", "/etc/my-service.toml"]
+command     = "/overlayer/syshub/bin/my-service"
+args        = ["--config", "/overlayer/syshub/etc/my-service.toml"]
 user        = "my-service"
 group       = "my-service"
-working_dir = "/var/lib/my-service"
+working_dir = "/overlayer/syshub/var/lib/my-service"
 
 # Process type
 oneshot  = false
@@ -207,41 +120,41 @@ console  = false
 launcher = false
 
 # Readiness
-notify_type = "bg-process"
-pid_file    = "/run/my-service/my-service.pid"
+notify_type  = "bg-process"
+pid_file     = "/run/my-service/my-service.pid"
 watchdog_sec = 30
 
-# Stop/Reload
-stop_command  = "/usr/lib/my-service/stop.sh"
+# Stop / reload
+stop_command  = "/overlayer/syshub/lib/my-service/stop.sh"
 reload_signal = "SIGHUP"
 
-# Chain (scripted boot pipeline)
+# Chain to another service on exit 0
 chain_to = "next-service"
 
 # Environment
-env_file = "/etc/default/my-service"
+env_file = "/overlayer/syshub/etc/default/my-service"
 [environment]
 MY_VAR = "value"
 
-# Resource limits
+# Resource limits ([soft, hard], 0 = unlimited)
 [rlimit]
 nofile = [4096, 8192]
 nproc  = [128, 256]
 
-# cgroup v2 (Phase 4B)
+# cgroup v2
 [cgroup_config]
 memory_limit = "512M"
 cpu_weight   = 200
 io_weight    = 100
 
-# Healthcheck (Phase 4D — Docker-style)
+# Post-start health monitoring
 [healthcheck]
-command           = "/usr/lib/my-service/health.sh"
+command           = "/overlayer/syshub/lib/my-service/health.sh"
 interval_sec      = 10
 failure_threshold = 3
 timeout_sec       = 5
 
-# Conditional dependencies (Phase 4C)
+# Only added as a hard dependency if the kernel path exists
 [conditional_dependencies]
 bluetooth = "hardware-present:/sys/class/bluetooth"
 
@@ -252,7 +165,7 @@ seccomp           = "profile"
 seccomp_profile   = "network-daemon"
 apparmor_profile  = "my-service"
 
-# Restart
+# Restart policy
 restart              = "on-failure"
 restart_sec          = 5
 max_restarts         = 5
@@ -261,82 +174,77 @@ timeout_start        = 90
 timeout_stop         = 30
 
 # Dependencies
-dependencies = ["zai-netd"]
+dependencies = ["quantra-netd"]
 wants        = ["bluetooth"]
 milestone    = ["printer"]
-after        = ["zai-net"]
+after        = ["quantra-net"]
 ```
 
----
-
-## Cryptographic Boot Chain
+## Cryptographic boot chain
 
 Integrity verification happens one stage earlier than `quantra` itself —
-in `quantra-ramfs` (see [`quantra-ramfs/`](../quantra-ramfs/)), via real
-dm-verity (`src/verity.rs`) and TPM2-backed measured boot
-(`src/measured_boot.rs`), not a single sha256-file compare. `quantra-ramfs`
+in [`quantra-ramfs`](../quantra-ramfs/), via dm-verity (`src/verity.rs`)
+and TPM2-backed measured boot (`src/measured_boot.rs`). `quantra-ramfs`
 only `pivot_root`s and `execve`s into `quantra` after that verification
 passes.
 
----
+## JSON structured logging
 
-## JSON Structured Logging (Phase 5A)
+Enable in `/overlayer/syshub/etc/quantra-system/init.toml`:
 
-Enable in `/etc/zainium/init.toml`:
 ```toml
 [logging]
 format = "json"
 ```
 
-Output (Grafana Loki / ELK / journald compatible):
 ```json
 {"ts":"2026-04-27T01:00:00Z","level":"INFO","target":"quantra::services","msg":"nginx started — PID 1234"}
 ```
 
----
+## Directory layout
 
-## Directory Layout
+Zainium has no `/etc`, `/var`, or `/usr` at the real root — everything
+core-OS lives under `/overlayer/syshub` (matches `src/config.rs`):
 
-Corrected against the real source (`quantra/src/config.rs`,
-`quantra/src/control.rs`, `quantra/src/main.rs`) — Zainium has no `/etc`,
-`/var`, or `/usr` at the real root, everything core-OS lives under
-`/overlayer/syshub`:
-
-```
+```text
 /overlayer/syshub/etc/quantra-system/
-  init.toml                — global init config
-  services/                — service definitions (*.toml)
-  enabled/                 — boot-enable markers (presence = auto-start)
-  tmpfiles.d/               — tmpfiles.d-style provisioning rules
-  vconsole.conf             — virtual console config
+  init.toml       — global init config
+  services/       — service unit definitions (*.toml)
+  enabled/        — boot-enable markers (presence = auto-start)
+  tmpfiles.d/     — tmpfiles.d-style provisioning rules
+  vconsole.conf   — virtual console config
 
-/overlayer/syshub/var/log/quantra-system/    — persistent logs
-/overlayer/syshub/var/lib/quantra-system/    — persistent state
+/overlayer/syshub/var/log/quantra-system/   — persistent logs
+/overlayer/syshub/var/lib/quantra-system/   — persistent state
 
 /run/quantra/
-  control                  — Unix socket (quantra-ctl connects here)
-  metrics                  — Prometheus metrics endpoint
-  isolated                 — marker written by `quantra-ctl isolate`
+  control    — Unix socket (quantra-ctl connects here)
+  metrics    — Prometheus metrics endpoint
+  isolated   — marker written by `quantra-ctl isolate`
 
 /run/quantra-system/
-  journal.socket             — journald-style log socket
+  journal.socket   — journald-style log socket
 ```
 
-Note: `/run/dbus` is currently hardcoded real-root in a few places
-(`quantra/src/tmpfiles.rs`, `quantra/src/utils.rs`) rather than scoped
-under `/overlayer/syshub` like the rest — a known inconsistency, not yet
-fixed.
+`/run/dbus` is currently hardcoded to the bare real-root path
+(`src/tmpfiles.rs`, `src/utils.rs`) rather than being scoped under
+`/overlayer/syshub` like everything else here — this is intentional, not
+a bug: `/run` itself (unlike `/etc`/`/var`/`/usr`) is a real-root tmpfs on
+Zainium, matching `/proc`/`/sys`/`/dev`, and `/run/dbus/system_bus_socket`
+is the standard, compiled-in path `libdbus`/`dbus-daemon` expect —
+scoping it under `/overlayer/syshub` would actually break interop with
+anything that doesn't know Zainium's own layout.
 
----
+## Verified facts
 
-## Resource Guarantees
+- FD limit: max 256 (documented constant, `src/main.rs`)
+- Test suite: `cargo test -p quantra` — real unit tests, not placeholders
+- Binary size / RSS: not published here — no number in a prior draft of
+  this README was measured against the actual musl release build, so
+  rather than repeat an unverified guess, it's omitted; measure locally
+  with `cargo build --release --target x86_64-unknown-linux-musl` if you
+  need current numbers.
 
-| Metric          | Value          |
-|-----------------|----------------|
-| Binary size     | ~55 KB (musl static-PIE) |
-| RSS at idle     | ~5 MB          |
-| FD limit        | max 256        |
-| Signals handled | all 64 POSIX   |
-| Compile target  | `x86_64-unknown-linux-musl` |
+## License
 
----
+MIT — see [../LICENSE](../LICENSE).
