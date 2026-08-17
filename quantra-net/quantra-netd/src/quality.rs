@@ -137,7 +137,7 @@ pub async fn bandwidth_test(
         .trim()
         .parse::<u64>()
         .context("Invalid tx_bytes value")?;
-    let d = duration_secs.max(1).min(60);
+    let d = duration_secs.clamp(1, 60);
     tokio::time::sleep(Duration::from_secs(d)).await;
     let rx1 = std::fs::read_to_string(&rx_path)
         .with_context(|| format!("Cannot read {}", rx_path))?

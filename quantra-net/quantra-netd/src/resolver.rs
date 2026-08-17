@@ -152,6 +152,13 @@ impl DnsCache {
     pub fn len(&self) -> usize {
         self.inner.read().unwrap().len()
     }
+
+    // Exists to satisfy clippy::len_without_is_empty (API-completeness
+    // convention); no caller needs it yet.
+    #[allow(dead_code)]
+    pub fn is_empty(&self) -> bool {
+        self.inner.read().unwrap().is_empty()
+    }
 }
 
 // ── DNS packet builder ────────────────────────────────────────────────────────

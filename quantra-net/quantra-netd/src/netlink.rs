@@ -337,7 +337,7 @@ pub async fn get_wireless_info(_handle: &Handle, name: &str) -> Result<Option<Wi
         0
     };
 
-    let quality = ((signal_strength + 90).max(0).min(60) as u32 * 100) / 60;
+    let quality = ((signal_strength + 90).clamp(0, 60) as u32 * 100) / 60;
 
     Ok(Some(WirelessInfo {
         ssid,

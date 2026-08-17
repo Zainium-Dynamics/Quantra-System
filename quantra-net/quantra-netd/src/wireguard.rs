@@ -513,9 +513,7 @@ fn build_peer_nla(peer: &WgPeerConfig) -> Result<Vec<u8>> {
         p.extend_from_slice(&WGPEER_A_ENDPOINT.to_ne_bytes());
         p.extend_from_slice(&ep_bytes);
         let pad = (4 - (ep_bytes.len() % 4)) % 4;
-        for _ in 0..pad {
-            p.push(0);
-        }
+        p.resize(p.len() + pad, 0);
     }
 
     // Persistent keepalive (optional)
@@ -534,9 +532,7 @@ fn build_peer_nla(peer: &WgPeerConfig) -> Result<Vec<u8>> {
         p.extend_from_slice(&(WGPEER_A_ALLOWEDIPS | 0x8000).to_ne_bytes());
         p.extend_from_slice(&aip);
         let pad = (4 - (aip.len() % 4)) % 4;
-        for _ in 0..pad {
-            p.push(0);
-        }
+        p.resize(p.len() + pad, 0);
     }
 
     Ok(p)
