@@ -1,19 +1,20 @@
-/// Session Manager
-///
-/// Manages login sessions. Each session maps to one logged-in user interaction
-/// context — a VT session, an SSH connection, a Wayland compositor instance, etc.
-///
-/// # Flatpak / xdg-portal compatibility
-///
-/// Flatpak calls `GetSessionByPid()` to identify the calling session and
-/// thereby determine which XDG portal backend to use.
-/// `session_by_pid()` scans cgroup membership to find the session.
-///
-/// # COSMIC desktop compatibility
-///
-/// COSMIC compositor (cosmic-comp) opens a Wayland session via `OpenSession`
-/// with `session_type=wayland`. It queries `GetSession` to get the VT number
-/// and runtime_dir for socket placement.
+//! Session Manager
+//!
+//! Manages login sessions. Each session maps to one logged-in user interaction
+//! context — a VT session, an SSH connection, a Wayland compositor instance, etc.
+//!
+//! # Flatpak / xdg-portal compatibility
+//!
+//! Flatpak calls `GetSessionByPid()` to identify the calling session and
+//! thereby determine which XDG portal backend to use.
+//! `session_by_pid()` scans cgroup membership to find the session.
+//!
+//! # COSMIC desktop compatibility
+//!
+//! COSMIC compositor (cosmic-comp) opens a Wayland session via `OpenSession`
+//! with `session_type=wayland`. It queries `GetSession` to get the VT number
+//! and runtime_dir for socket placement.
+
 use crate::types::*;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -37,6 +38,7 @@ impl SessionManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn open(
         &mut self,
         uid: u32,
@@ -232,10 +234,11 @@ impl SessionManager {
         }
 
         // Parent process scan — walk up ppid chain
-        if let Some(ppid) = get_ppid(pid) {
-            if ppid != pid && ppid > 1 {
-                return self.session_by_pid(ppid);
-            }
+        if let Some(ppid) = get_ppid(pid)
+            && ppid != pid
+            && ppid > 1
+        {
+            return self.session_by_pid(ppid);
         }
 
         None

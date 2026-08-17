@@ -104,10 +104,8 @@ pub fn settle(duration: Duration) -> usize {
         }
 
         if let Some(ev) = parse_uevent(&buf[..n as usize]) {
-            if ev.action == "add" && ev.subsystem == "block" {
-                if create_dev_node(&ev) {
-                    created += 1;
-                }
+            if ev.action == "add" && ev.subsystem == "block" && create_dev_node(&ev) {
+                created += 1;
             }
         }
     }
@@ -194,18 +192,18 @@ pub fn create_disk_symlinks() -> usize {
                 let label = extract_field(&content, "ID_FS_LABEL");
                 if let Some(uuid) = uuid {
                     let link = format!("/dev/disk/by-uuid/{}", uuid);
-                    if !std::path::Path::new(&link).exists() {
-                        if std::os::unix::fs::symlink(&dev_path, &link).is_ok() {
-                            count += 1;
-                        }
+                    if !std::path::Path::new(&link).exists()
+                        && std::os::unix::fs::symlink(&dev_path, &link).is_ok()
+                    {
+                        count += 1;
                     }
                 }
                 if let Some(label) = label {
                     let link = format!("/dev/disk/by-label/{}", label);
-                    if !std::path::Path::new(&link).exists() {
-                        if std::os::unix::fs::symlink(&dev_path, &link).is_ok() {
-                            count += 1;
-                        }
+                    if !std::path::Path::new(&link).exists()
+                        && std::os::unix::fs::symlink(&dev_path, &link).is_ok()
+                    {
+                        count += 1;
                     }
                 }
             }
@@ -298,7 +296,7 @@ fn parse_uevent(buf: &[u8]) -> Option<Uevent> {
 
 fn create_dev_node(ev: &Uevent) -> bool {
     // devname may contain subdirs (e.g. "block/sda1" on some kernels)
-    let basename = ev.devname.split('/').last().unwrap_or(&ev.devname);
+    let basename = ev.devname.split('/').next_back().unwrap_or(&ev.devname);
     let path = format!("/dev/{}", basename);
 
     if std::path::Path::new(&path).exists() {

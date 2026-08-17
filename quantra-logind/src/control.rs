@@ -1,17 +1,18 @@
-/// Control server — JSON socket protocol + event broadcasting
-///
-/// Same [4B LE length][JSON] framing as PID 1 `/run/quantra/control`.
-///
-/// # Access control
-///
-/// SO_PEERCRED check:
-/// - uid=0 (root): full access — all commands
-/// - uid=N (user): restricted access — own session queries only
-///
-/// # Event subscription
-///
-/// Send `{"cmd":"subscribe"}` → connection stays open, receives event JSON
-/// objects as they occur. Used by COSMIC shell, session monitor tools.
+//! Control server — JSON socket protocol + event broadcasting
+//!
+//! Same [4B LE length][JSON] framing as PID 1 `/run/quantra/control`.
+//!
+//! # Access control
+//!
+//! SO_PEERCRED check:
+//! - uid=0 (root): full access — all commands
+//! - uid=N (user): restricted access — own session queries only
+//!
+//! # Event subscription
+//!
+//! Send `{"cmd":"subscribe"}` → connection stays open, receives event JSON
+//! objects as they occur. Used by COSMIC shell, session monitor tools.
+
 use crate::dbus_bridge;
 use crate::inhibitor::InhibitorManager;
 use crate::power::PowerManager;
@@ -92,9 +93,11 @@ impl ControlServer {
             let inh = Arc::clone(&inhibitors);
             thread::Builder::new()
                 .name("inhibitor-gc".into())
-                .spawn(move || loop {
-                    thread::sleep(Duration::from_secs(30));
-                    inh.lock().unwrap().gc_dead_pids();
+                .spawn(move || {
+                    loop {
+                        thread::sleep(Duration::from_secs(30));
+                        inh.lock().unwrap().gc_dead_pids();
+                    }
                 })
                 .ok();
         }
@@ -128,6 +131,7 @@ impl ControlServer {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle(
     mut stream: UnixStream,
     peer_uid: u32,
@@ -200,6 +204,7 @@ fn handle(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn dispatch(
     req: Request,
     peer_uid: u32,

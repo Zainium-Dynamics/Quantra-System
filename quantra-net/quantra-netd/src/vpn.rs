@@ -1,4 +1,3 @@
-use rtnetlink;
 // VPN management — WireGuard and OpenVPN profile CRUD + tunnel lifecycle.
 
 use anyhow::{Context, Result};

@@ -313,10 +313,11 @@ fn resolve_uid(name: &str) -> Option<nix::unistd::Uid> {
     if let Ok(content) = fs::read_to_string("/overlayer/syshub/etc/passwd") {
         for line in content.lines() {
             let fields: Vec<&str> = line.split(':').collect();
-            if fields.len() >= 3 && fields[0] == name {
-                if let Ok(n) = fields[2].parse::<u32>() {
-                    return Some(nix::unistd::Uid::from_raw(n));
-                }
+            if fields.len() >= 3
+                && fields[0] == name
+                && let Ok(n) = fields[2].parse::<u32>()
+            {
+                return Some(nix::unistd::Uid::from_raw(n));
             }
         }
     }
@@ -330,10 +331,11 @@ fn resolve_gid(name: &str) -> Option<nix::unistd::Gid> {
     if let Ok(content) = fs::read_to_string("/overlayer/syshub/etc/group") {
         for line in content.lines() {
             let fields: Vec<&str> = line.split(':').collect();
-            if fields.len() >= 3 && fields[0] == name {
-                if let Ok(n) = fields[2].parse::<u32>() {
-                    return Some(nix::unistd::Gid::from_raw(n));
-                }
+            if fields.len() >= 3
+                && fields[0] == name
+                && let Ok(n) = fields[2].parse::<u32>()
+            {
+                return Some(nix::unistd::Gid::from_raw(n));
             }
         }
     }

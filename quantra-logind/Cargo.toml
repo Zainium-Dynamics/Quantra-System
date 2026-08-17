@@ -1,8 +1,8 @@
 [package]
 name        = "quantra-logind"
 version     = "6.0.1"
-edition     = "2021"
-rust-version = "1.82"
+edition     = "2024"
+rust-version = "1.97"
 license     = "MIT"
 description = "Zainium OS session/login manager — systemd-logind superset. Compatible with Flatpak, OSTree, COSMIC desktop, xdg-desktop-portal, PipeWire, polkit."
 
@@ -25,3 +25,6 @@ serde      = { version = "=1.0.200", features = ["derive"] }
 serde_json = "=1.0.117"
 thiserror  = "=1.0.59"
 toml       = "0.8"
+oxibus-client = { git = "https://github.com/Zainium-Dynamics/oxibus.git", rev = "ddbab9d" }
+oxibus-core = { git = "https://github.com/Zainium-Dynamics/oxibus.git", rev = "ddbab9d" }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] }

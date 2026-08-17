@@ -1,25 +1,26 @@
-/// utmp/wtmp — login record compatibility
-///
-/// Maintains `/run/utmp` (current logins) and `/overlayer/syshub/var/log/wtmp` (login history).
-///
-/// # Compatibility
-///
-/// Standard POSIX login accounting. Required by:
-/// - `who(1)`, `w(1)`, `last(1)`, `users(1)`
-/// - PAM modules (`pam_lastlog.so`)
-/// - SSH (`sshd` reads utmp to track active sessions)
-/// - Flatpak (reads utmp for desktop detection in some configurations)
-///
-/// # Record format
-///
-/// We write the `struct utmp` (glibc) format directly.
-/// Each record is 384 bytes (x86-64 glibc).
+//! utmp/wtmp — login record compatibility
+//!
+//! Maintains `/var/run/utmp` (current logins) and `/var/log/wtmp` (login history).
+//!
+//! # Compatibility
+//!
+//! Standard POSIX login accounting. Required by:
+//! - `who(1)`, `w(1)`, `last(1)`, `users(1)`
+//! - PAM modules (`pam_lastlog.so`)
+//! - SSH (`sshd` reads utmp to track active sessions)
+//! - Flatpak (reads utmp for desktop detection in some configurations)
+//!
+//! # Record format
+//!
+//! We write the `struct utmp` (glibc) format directly.
+//! Each record is 384 bytes (x86-64 glibc).
+
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 
-const UTMP_PATH: &str = "/run/utmp";
-const WTMP_PATH: &str = "/overlayer/syshub/var/log/wtmp";
+const UTMP_PATH: &str = "/var/run/utmp";
+const WTMP_PATH: &str = "/var/log/wtmp";
 
 // struct utmp field constants
 const UT_LINESIZE: usize = 32;
@@ -144,7 +145,7 @@ fn write_utmp_record(rec: &Utmp) {
             let existing = &data[start..start + rec_size];
             let existing_pid =
                 i32::from_ne_bytes([existing[4], existing[5], existing[6], existing[7]]);
-            if existing_pid == rec.ut_pid as i32 || &existing[8..8 + 32] == &rec.ut_line[..] {
+            if existing_pid == rec.ut_pid || existing[8..8 + 32] == rec.ut_line[..] {
                 // Overwrite this record
                 data[start..start + rec_size].copy_from_slice(bytes);
                 std::fs::write(UTMP_PATH, &data).ok();

@@ -11,14 +11,27 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 
+// This module is quantra-logind's *client* API: greeter/elev processes are
+// meant to call open_session()/close_session() after a successful auth, not
+// quantra-logind itself. Since this crate ships only [[bin]] targets (no
+// [lib]), nothing outside this binary can reach these functions yet — kept
+// here (rather than deleted) as the ready-to-link implementation for when
+// cosmic-greeter/elev wire up real session registration (tracked separately,
+// not part of the quantra-logind daemon itself).
+#[allow(dead_code)]
 const LOGIND_SOCKET: &str = "/run/quantra-logind/control";
+#[allow(dead_code)]
 const SESSION_ID_DIR: &str = "/run/quantra-logind/sessions";
 
-/// Paths where elevate-pam service stacks live (Zainium: no /usr, no /etc at root).
-const ELEVATE_PAM_SERVICE_DIRS: &[&str] = &["/overlayer/syshub/etc/elevate-pam/services"];
+/// Paths where elevate-pam service stacks live (Zainium: no /usr).
+const ELEVATE_PAM_SERVICE_DIRS: &[&str] = &[
+    "/overlayer/syshub/etc/elevate-pam/services",
+    "/etc/elevate-pam/services",
+];
 
 // ── Logind JSON client ────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 fn call_logind(request: &serde_json::Value) -> Result<serde_json::Value, String> {
     let mut stream =
         UnixStream::connect(LOGIND_SOCKET).map_err(|e| format!("connect {LOGIND_SOCKET}: {e}"))?;
@@ -49,6 +62,8 @@ fn call_logind(request: &serde_json::Value) -> Result<serde_json::Value, String>
 
 /// Open a user session with quantra-logind (called by greeter / elev after auth).
 /// Returns (session_id, runtime_dir).
+#[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 pub fn open_session(
     uid: u32,
     username: &str,
@@ -105,6 +120,7 @@ pub fn open_session(
 }
 
 /// Close session previously opened for `pid`.
+#[allow(dead_code)]
 pub fn close_session_for_pid(pid: u32) -> Result<(), String> {
     let path = format!("{SESSION_ID_DIR}/{pid}");
     let text = fs::read_to_string(&path).map_err(|e| format!("no session for pid={pid}: {e}"))?;
@@ -117,6 +133,7 @@ pub fn close_session_for_pid(pid: u32) -> Result<(), String> {
     close_session(sid)
 }
 
+#[allow(dead_code)]
 pub fn close_session(sid: u64) -> Result<(), String> {
     let req = serde_json::json!({
         "cmd": "close_session",
@@ -179,9 +196,10 @@ pub fn write_elevate_pam_stacks() -> std::io::Result<()> {
 
     // Drop a short README so ops never recreate pam.d by habit
     let note = dir.parent().map(|p| p.join("README.zainium"));
-    if let Some(p) = note {
-        if !p.exists() {
-            let body = "\
+    if let Some(p) = note
+        && !p.exists()
+    {
+        let body = "\
 # elevate-pam on Zainium OS
 #
 # Classic Linux /etc/pam.d is NOT used.
@@ -192,8 +210,7 @@ pub fn write_elevate_pam_stacks() -> std::io::Result<()> {
 #
 # Do not install or write pam.d files.
 ";
-            fs::write(p, body)?;
-        }
+        fs::write(p, body)?;
     }
 
     log::info!(

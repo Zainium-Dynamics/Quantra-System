@@ -25,7 +25,7 @@ use user::UserManager;
 pub const SOCKET_PATH: &str = "/run/quantra-logind/control";
 pub const RUNTIME_DIR_BASE: &str = "/run/user";
 pub const CONFIG_PATH: &str = "/overlayer/syshub/etc/quantra-system/logind.conf";
-pub const LINGER_DIR: &str = "/overlayer/syshub/var/lib/quantra-logind/linger";
+pub const LINGER_DIR: &str = "/var/lib/quantra-logind/linger";
 
 fn main() -> ! {
     setup_logging();

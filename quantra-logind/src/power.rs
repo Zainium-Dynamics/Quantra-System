@@ -1,30 +1,31 @@
-/// Power Manager — shutdown, suspend, hibernate, brightness, wall messages
-///
-/// # Inhibitor-aware power actions
-///
-/// Before executing any power action, the manager:
-/// 1. Checks for `Block` inhibitors — refuses the action if any are held
-/// 2. Waits up to `InhibitDelayMaxSec` for `Delay` inhibitors to release
-/// 3. Broadcasts a `PrepareForShutdown(true)` event to all subscribers
-/// 4. Sends wall messages to all logged-in TTYs
-/// 5. Executes the action
-///
-/// # Scheduled shutdown
-///
-/// `ScheduleShutdown` sets a timer. At the scheduled time, shutdown is
-/// performed. Wall messages are sent at: time-1h, time-30m, time-10m,
-/// time-5m, time-1m, time-30s.
-///
-/// # Brightness control
-///
-/// Reads/writes `/sys/class/backlight/<name>/brightness` for display brightness
-/// and `/sys/class/leds/<name>/brightness` for keyboard/indicator LEDs.
-/// No polkit — logind owns the brightness interface directly.
-///
-/// # ACPI event handling
-///
-/// Reads ACPI events from `/proc/acpi/event` or `acpi_listen` pipe.
-/// Maps events to power actions from config.
+//! Power Manager — shutdown, suspend, hibernate, brightness, wall messages
+//!
+//! # Inhibitor-aware power actions
+//!
+//! Before executing any power action, the manager:
+//! 1. Checks for `Block` inhibitors — refuses the action if any are held
+//! 2. Waits up to `InhibitDelayMaxSec` for `Delay` inhibitors to release
+//! 3. Broadcasts a `PrepareForShutdown(true)` event to all subscribers
+//! 4. Sends wall messages to all logged-in TTYs
+//! 5. Executes the action
+//!
+//! # Scheduled shutdown
+//!
+//! `ScheduleShutdown` sets a timer. At the scheduled time, shutdown is
+//! performed. Wall messages are sent at: time-1h, time-30m, time-10m,
+//! time-5m, time-1m, time-30s.
+//!
+//! # Brightness control
+//!
+//! Reads/writes `/sys/class/backlight/<name>/brightness` for display brightness
+//! and `/sys/class/leds/<name>/brightness` for keyboard/indicator LEDs.
+//! No polkit — logind owns the brightness interface directly.
+//!
+//! # ACPI event handling
+//!
+//! Reads ACPI events from `/proc/acpi/event` or `acpi_listen` pipe.
+//! Maps events to power actions from config.
+
 use crate::inhibitor::InhibitorManager;
 use crate::types::*;
 use anyhow::Result;
@@ -380,16 +381,16 @@ fn acpi_event_loop(
     power: Arc<Mutex<PowerManager>>,
     inhibitors: Arc<Mutex<InhibitorManager>>,
 ) {
-    // Try acpid socket first (/run/acpid.socket)
+    // Try acpid socket first (/var/run/acpid.socket)
     // Fall back to /proc/acpi/event (deprecated but widely available)
-    let acpid_socket = "/run/acpid.socket";
+    let acpid_socket = "/var/run/acpid.socket";
     let proc_acpi = "/proc/acpi/event";
 
-    if Path::new(acpid_socket).exists() {
-        if let Ok(stream) = std::os::unix::net::UnixStream::connect(acpid_socket) {
-            acpi_read_socket(stream, &config, &power, &inhibitors);
-            return;
-        }
+    if Path::new(acpid_socket).exists()
+        && let Ok(stream) = std::os::unix::net::UnixStream::connect(acpid_socket)
+    {
+        acpi_read_socket(stream, &config, &power, &inhibitors);
+        return;
     }
 
     if Path::new(proc_acpi).exists() {
@@ -409,7 +410,7 @@ fn acpi_read_socket(
 ) {
     use std::io::{BufRead, BufReader};
     let reader = BufReader::new(stream);
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         log::debug!("ACPI event: {}", line);
         if let Some(event) = parse_acpi_line(&line) {
             handle_acpi_event(event, config, power, inhibitors);
@@ -425,7 +426,7 @@ fn acpi_read_proc(
     use std::io::{BufRead, BufReader};
     if let Ok(f) = std::fs::File::open("/proc/acpi/event") {
         let reader = BufReader::new(f);
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             if let Some(event) = parse_acpi_line(&line) {
                 handle_acpi_event(event, config, power, inhibitors);
             }
@@ -586,7 +587,7 @@ fn brightness_path(subsystem: &str, name: &str) -> Result<String> {
             return Err(anyhow::anyhow!(
                 "unknown brightness subsystem: {}",
                 subsystem
-            ))
+            ));
         }
     };
     if !Path::new(&path).exists() {
@@ -613,7 +614,7 @@ fn set_efi_boot_to_firmware() -> Result<()> {
     let mut data = [0u8; 12]; // 4 bytes EFI attrs + 8 bytes value
     data[0] = 0x07; // EFI_VARIABLE_NON_VOLATILE | BOOTSERVICE | RUNTIME
     data[4] = 0x01; // value = 1 (boot to firmware UI)
-    fs::write(osi_path, &data).map_err(|e| anyhow::anyhow!("set EFI OsIndications: {}", e))
+    fs::write(osi_path, data).map_err(|e| anyhow::anyhow!("set EFI OsIndications: {}", e))
 }
 
 // ── Time helpers ──────────────────────────────────────────────────────────────

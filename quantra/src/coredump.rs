@@ -188,21 +188,21 @@ pub fn list_cores(unit: Option<&str>) -> Vec<CoreInfo> {
                 continue;
             }
 
-            if let Some(u) = unit {
-                if !name.contains(&format!("core.{}.", u)) {
-                    continue;
-                }
+            if let Some(u) = unit
+                && !name.contains(&format!("core.{}.", u))
+            {
+                continue;
             }
 
-            if let Ok(content) = fs::read_to_string(entry.path()) {
-                if let Some(info) = parse_core_meta(&content) {
-                    cores.push(info);
-                }
+            if let Ok(content) = fs::read_to_string(entry.path())
+                && let Some(info) = parse_core_meta(&content)
+            {
+                cores.push(info);
             }
         }
     }
 
-    cores.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    cores.sort_by_key(|c| std::cmp::Reverse(c.timestamp));
     cores
 }
 
@@ -265,10 +265,10 @@ fn cleanup_old_cores(exe: &str) -> Result<()> {
             if name.starts_with(&prefix) && !name.ends_with(".json") {
                 // Extract timestamp from filename: core.exe.pid.timestamp
                 let parts: Vec<&str> = name.split('.').collect();
-                if let Some(ts_str) = parts.get(3) {
-                    if let Ok(ts) = ts_str.parse::<u64>() {
-                        cores.push((ts, entry.path().to_string_lossy().into_owned()));
-                    }
+                if let Some(ts_str) = parts.get(3)
+                    && let Ok(ts) = ts_str.parse::<u64>()
+                {
+                    cores.push((ts, entry.path().to_string_lossy().into_owned()));
                 }
             }
         }

@@ -349,12 +349,14 @@ pub struct Service {
     pub protect_kernel_tunables: bool,
     /// Block finit_module/init_module/delete_module via seccomp.
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub protect_kernel_modules: bool,
     /// Block /dev/kmsg access.
     #[serde(default)]
     pub protect_kernel_logs: bool,
     /// Block clock_settime/settimeofday via seccomp.
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub protect_clock: bool,
     /// Remount /sys/fs/cgroup read-only.
     #[serde(default)]
@@ -369,6 +371,7 @@ pub struct Service {
     pub read_only_paths: Vec<String>,
     /// Explicitly keep these paths read-write (with protect_system).
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub read_write_paths: Vec<String>,
     /// Bind-mount pairs "host:dest" into service namespace.
     #[serde(default)]
@@ -385,6 +388,7 @@ pub struct Service {
     // ── Syscall/namespace restriction ────────────────────────────────────
     /// Block unshare/clone CLONE_NEW* via seccomp.
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub restrict_namespaces: bool,
     /// Block suid/sgid file creation via seccomp.
     #[serde(default)]
@@ -452,6 +456,7 @@ pub struct Service {
     // ── MEDIUM: Additional namespace/path features ────────────────────────
     /// Mount a private user namespace. Maps UID 0 inside to nobody outside.
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub private_users: bool,
 
     /// Mount tmpfs on specific paths. Format: "path" or "path:size:mode".
@@ -496,6 +501,7 @@ pub struct Service {
     /// Format: `"id:path"` — id is the credential name, path is the encrypted file.
     /// Decrypted credentials are placed in $CREDENTIALS_DIRECTORY.
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub load_credential: Vec<String>,
 
     // ── LOW: Additional flags ─────────────────────────────────────────────
@@ -507,11 +513,13 @@ pub struct Service {
     /// Restrict allowed socket address families via seccomp.
     /// Example: `["AF_UNIX", "AF_INET", "AF_INET6"]`
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub socket_bind_deny: Vec<String>,
 
     /// Allow only specific port ranges for socket bind().
     /// Format: `"protocol:port"` e.g. `["tcp:443", "tcp:80"]`.
     #[serde(default)]
+    #[allow(dead_code)] // parsed, sandbox enforcement not wired up yet
     pub socket_bind_allow: Vec<String>,
 }
 

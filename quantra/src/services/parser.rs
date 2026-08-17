@@ -210,13 +210,13 @@ fn validate_service(service: &Service, _path: &Path) -> Result<()> {
     }
 
     // chain_to must not self-reference
-    if let Some(ref chain) = service.chain_to {
-        if chain == &service.name {
-            return Err(anyhow::anyhow!(
-                "Service '{}': chain_to cannot reference itself",
-                service.name
-            ));
-        }
+    if let Some(ref chain) = service.chain_to
+        && chain == &service.name
+    {
+        return Err(anyhow::anyhow!(
+            "Service '{}': chain_to cannot reference itself",
+            service.name
+        ));
     }
 
     // Validate rlimit pairs: soft <= hard (unless hard is 0 = unlimited)
@@ -229,16 +229,17 @@ fn validate_service(service: &Service, _path: &Path) -> Result<()> {
             ("memlock", rl.memlock),
             ("core", rl.core),
         ] {
-            if let Some([soft, hard]) = pair {
-                if hard != 0 && soft > hard {
-                    return Err(anyhow::anyhow!(
-                        "Service '{}': rlimit.{}: soft ({}) > hard ({})",
-                        service.name,
-                        name,
-                        soft,
-                        hard
-                    ));
-                }
+            if let Some([soft, hard]) = pair
+                && hard != 0
+                && soft > hard
+            {
+                return Err(anyhow::anyhow!(
+                    "Service '{}': rlimit.{}: soft ({}) > hard ({})",
+                    service.name,
+                    name,
+                    soft,
+                    hard
+                ));
             }
         }
     }

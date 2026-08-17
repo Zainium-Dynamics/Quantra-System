@@ -1,15 +1,16 @@
-/// Shared types — Session, User, Seat, Inhibitor, Request, Response, Events
-///
-/// # JSON Control Protocol
-///
-/// Same framing as PID 1 `/run/quantra/control`:
-///   `[4 bytes LE length][JSON payload]`
-///
-/// # Compatibility
-///
-/// All response fields mirror systemd-logind D-Bus property names so that
-/// elevate-pam, Flatpak, polkit, COSMIC desktop, and xdg-desktop-portal
-/// can use the JSON socket as a drop-in source of truth.
+//! Shared types — Session, User, Seat, Inhibitor, Request, Response, Events
+//!
+//! # JSON Control Protocol
+//!
+//! Same framing as PID 1 `/run/quantra/control`:
+//!   `[4 bytes LE length][JSON payload]`
+//!
+//! # Compatibility
+//!
+//! All response fields mirror systemd-logind D-Bus property names so that
+//! elevate-pam, Flatpak, polkit, COSMIC desktop, and xdg-desktop-portal
+//! can use the JSON socket as a drop-in source of truth.
+
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -31,17 +32,13 @@ pub enum SessionType {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SessionClass {
+    #[default]
     User,
     Greeter,    // Login manager (e.g. cosmic-greeter)
     LockScreen, // Screen locker
     Background, // System background session
-}
-
-impl Default for SessionClass {
-    fn default() -> Self {
-        Self::User
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

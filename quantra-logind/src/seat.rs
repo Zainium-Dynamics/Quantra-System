@@ -1,29 +1,30 @@
-/// Seat Manager — VT switching, device tracking, DRM/evdev fd passing
-///
-/// # Seat concept
-///
-/// A seat is a collection of hardware that allows one user to interact with
-/// the system simultaneously. Most systems have one seat (`seat0`) consisting
-/// of:
-/// - One or more display outputs (DRM devices: /dev/dri/card*)
-/// - Keyboard/mouse/touchscreen (evdev devices: /dev/input/event*)
-/// - Sound card (ALSA devices: /dev/snd/*)
-///
-/// # VT switching
-///
-/// Virtual terminal switching uses the `VT_ACTIVATE` ioctl on `/dev/tty0`.
-/// `SwitchTo { vt_number }` activates the specified VT.
-///
-/// COSMIC desktop, SDDM, and GDM use this to switch between the greeter
-/// and user sessions.
-///
-/// # TakeDevice / ReleaseDevice
-///
-/// Compositors (COSMIC, wlroots, etc.) call `TakeDevice` to get an
-/// open file descriptor to DRM/evdev devices WITHOUT needing to be root.
-/// quantra-logind opens the device and passes the fd via SCM_RIGHTS.
-///
-/// This is the seat device access protocol used by libseat and wlroots.
+//! Seat Manager — VT switching, device tracking, DRM/evdev fd passing
+//!
+//! # Seat concept
+//!
+//! A seat is a collection of hardware that allows one user to interact with
+//! the system simultaneously. Most systems have one seat (`seat0`) consisting
+//! of:
+//! - One or more display outputs (DRM devices: /dev/dri/card*)
+//! - Keyboard/mouse/touchscreen (evdev devices: /dev/input/event*)
+//! - Sound card (ALSA devices: /dev/snd/*)
+//!
+//! # VT switching
+//!
+//! Virtual terminal switching uses the `VT_ACTIVATE` ioctl on `/dev/tty0`.
+//! `SwitchTo { vt_number }` activates the specified VT.
+//!
+//! COSMIC desktop, SDDM, and GDM use this to switch between the greeter
+//! and user sessions.
+//!
+//! # TakeDevice / ReleaseDevice
+//!
+//! Compositors (COSMIC, wlroots, etc.) call `TakeDevice` to get an
+//! open file descriptor to DRM/evdev devices WITHOUT needing to be root.
+//! quantra-logind opens the device and passes the fd via SCM_RIGHTS.
+//!
+//! This is the seat device access protocol used by libseat and wlroots.
+
 use crate::types::*;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -258,11 +259,11 @@ impl SeatManager {
             .get_mut(seat_id)
             .ok_or_else(|| anyhow::anyhow!("seat {} not found", seat_id))?;
 
-        if let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath) {
-            if let Some(fd) = dev.fd.take() {
-                unsafe { libc::close(fd) };
-                log::info!("ReleaseDevice: {} fd closed", devpath);
-            }
+        if let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath)
+            && let Some(fd) = dev.fd.take()
+        {
+            unsafe { libc::close(fd) };
+            log::info!("ReleaseDevice: {} fd closed", devpath);
         }
         Ok(())
     }
@@ -270,16 +271,16 @@ impl SeatManager {
     /// Pause a device (called during VT switch away from session).
     #[allow(dead_code)]
     pub fn pause_device(&mut self, seat_id: &str, devpath: &str) {
-        if let Some(seat) = self.seats.get_mut(seat_id) {
-            if let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath) {
-                dev.paused = true;
-                // For DRM: set master to nobody so session loses modesetting control
-                if dev.kind == DeviceKind::Drm {
-                    if let Some(fd) = dev.fd {
-                        const DRM_IOCTL_DROP_MASTER: libc::c_ulong = 0x64 | (0 << 8);
-                        unsafe { libc::ioctl(fd, DRM_IOCTL_DROP_MASTER, 0) };
-                    }
-                }
+        if let Some(seat) = self.seats.get_mut(seat_id)
+            && let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath)
+        {
+            dev.paused = true;
+            // For DRM: set master to nobody so session loses modesetting control
+            if dev.kind == DeviceKind::Drm
+                && let Some(fd) = dev.fd
+            {
+                const DRM_IOCTL_DROP_MASTER: libc::c_ulong = 0x64;
+                unsafe { libc::ioctl(fd, DRM_IOCTL_DROP_MASTER, 0) };
             }
         }
     }
@@ -287,15 +288,15 @@ impl SeatManager {
     /// Resume a device (called when VT switches back to session).
     #[allow(dead_code)]
     pub fn resume_device(&mut self, seat_id: &str, devpath: &str) {
-        if let Some(seat) = self.seats.get_mut(seat_id) {
-            if let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath) {
-                dev.paused = false;
-                if dev.kind == DeviceKind::Drm {
-                    if let Some(fd) = dev.fd {
-                        const DRM_IOCTL_SET_MASTER: libc::c_ulong = 0x1e | (0 << 8);
-                        unsafe { libc::ioctl(fd, DRM_IOCTL_SET_MASTER, 0) };
-                    }
-                }
+        if let Some(seat) = self.seats.get_mut(seat_id)
+            && let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath)
+        {
+            dev.paused = false;
+            if dev.kind == DeviceKind::Drm
+                && let Some(fd) = dev.fd
+            {
+                const DRM_IOCTL_SET_MASTER: libc::c_ulong = 0x1e;
+                unsafe { libc::ioctl(fd, DRM_IOCTL_SET_MASTER, 0) };
             }
         }
     }

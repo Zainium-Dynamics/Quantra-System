@@ -1,32 +1,33 @@
-/// User Manager — /run/user/<uid> lifecycle + linger + IPC cleanup
-///
-/// # /run/user/<uid> compatibility
-///
-/// Every major desktop component expects this directory:
-///
-/// | Component | What it uses |
-/// |-----------|-------------|
-/// | Flatpak | `/run/user/UID/` as XDG_RUNTIME_DIR base |
-/// | PipeWire | `/run/user/UID/pipewire-0` socket |
-/// | PulseAudio | `/run/user/UID/pulse/` directory |
-/// | COSMIC desktop | `/run/user/UID/wayland-0` socket |
-/// | xdg-desktop-portal | `/run/user/UID/xdg-desktop-portal/` |
-/// | D-Bus (user session) | `/run/user/UID/bus` socket |
-/// | Systemd user bus | `/run/user/UID/systemd/` |
-/// | Flatpak portal | `/run/user/UID/doc/` (document portal) |
-///
-/// # OSTree compatibility
-///
-/// OSTree-based systems (like AtomicOS or Zainium in immutable mode) rely on
-/// XDG_RUNTIME_DIR for temporary session state. quantra-logind must:
-/// 1. Create /run/user/UID as tmpfs (mode 0700, uid:uid)
-/// 2. Pre-create standard subdirectories (systemd/, doc/, portal/)
-/// 3. Set correct env vars in session cgroup via /proc/<pid>/environ injection
-///
-/// # Linger
-///
-/// `linger = true` keeps /run/user/UID alive even with no sessions.
-/// Required for user systemd services that run headless (e.g. persistent Flatpak background apps).
+//! User Manager — /run/user/<uid> lifecycle + linger + IPC cleanup
+//!
+//! # /run/user/<uid> compatibility
+//!
+//! Every major desktop component expects this directory:
+//!
+//! | Component | What it uses |
+//! |-----------|-------------|
+//! | Flatpak | `/run/user/UID/` as XDG_RUNTIME_DIR base |
+//! | PipeWire | `/run/user/UID/pipewire-0` socket |
+//! | PulseAudio | `/run/user/UID/pulse/` directory |
+//! | COSMIC desktop | `/run/user/UID/wayland-0` socket |
+//! | xdg-desktop-portal | `/run/user/UID/xdg-desktop-portal/` |
+//! | D-Bus (user session) | `/run/user/UID/bus` socket |
+//! | Systemd user bus | `/run/user/UID/systemd/` |
+//! | Flatpak portal | `/run/user/UID/doc/` (document portal) |
+//!
+//! # OSTree compatibility
+//!
+//! OSTree-based systems (like AtomicOS or Zainium in immutable mode) rely on
+//! XDG_RUNTIME_DIR for temporary session state. quantra-logind must:
+//! 1. Create /run/user/UID as tmpfs (mode 0700, uid:uid)
+//! 2. Pre-create standard subdirectories (systemd/, doc/, portal/)
+//! 3. Set correct env vars in session cgroup via /proc/<pid>/environ injection
+//!
+//! # Linger
+//!
+//! `linger = true` keeps /run/user/UID alive even with no sessions.
+//! Required for user systemd services that run headless (e.g. persistent Flatpak background apps).
+
 use crate::types::*;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -158,7 +159,7 @@ impl UserManager {
 
     pub fn set_linger(&mut self, uid: u32, enable: bool) -> Result<()> {
         // Persist linger state
-        let linger_dir = "/overlayer/syshub/var/lib/quantra-logind/linger";
+        let linger_dir = "/var/lib/quantra-logind/linger";
         fs::create_dir_all(linger_dir).map_err(|e| anyhow::anyhow!("create linger dir: {}", e))?;
         let linger_file = format!("{}/{}", linger_dir, uid);
 
@@ -223,17 +224,17 @@ impl UserManager {
         }
     }
 
-    /// Load persisted linger state from /overlayer/syshub/var/lib/quantra-logind/linger/
+    /// Load persisted linger state from /var/lib/quantra-logind/linger/
     pub fn load_linger_state(&mut self) {
-        let linger_dir = "/overlayer/syshub/var/lib/quantra-logind/linger";
+        let linger_dir = "/var/lib/quantra-logind/linger";
         if let Ok(entries) = fs::read_dir(linger_dir) {
             for entry in entries.flatten() {
-                if let Ok(uid) = entry.file_name().to_string_lossy().parse::<u32>() {
-                    if let Some(username) = resolve_username(uid) {
-                        log::info!("Restoring linger for uid={}", uid);
-                        self.set_linger(uid, true).ok();
-                        let _ = username;
-                    }
+                if let Ok(uid) = entry.file_name().to_string_lossy().parse::<u32>()
+                    && let Some(username) = resolve_username(uid)
+                {
+                    log::info!("Restoring linger for uid={}", uid);
+                    self.set_linger(uid, true).ok();
+                    let _ = username;
                 }
             }
         }
@@ -450,10 +451,11 @@ fn remove_user_ipc(uid: u32) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Ok(meta) = fs::metadata(&path) {
-                if {
+                let res = {
                     use std::os::unix::fs::MetadataExt;
                     meta.uid() == uid || (meta.gid() == uid && meta.mode() & 0o2 != 0)
-                } {
+                };
+                if res {
                     fs::remove_file(&path).ok();
                     log::debug!("IPC cleanup: removed {:?}", path);
                 }
@@ -482,15 +484,14 @@ fn read_total_ram_bytes() -> u64 {
 }
 
 fn resolve_username(uid: u32) -> Option<String> {
-    let passwd = fs::read_to_string("/overlayer/syshub/etc/passwd").ok()?;
+    let passwd = fs::read_to_string("/etc/passwd").ok()?;
     for line in passwd.lines() {
         let fields: Vec<&str> = line.split(':').collect();
-        if fields.len() >= 3 {
-            if let Ok(u) = fields[2].parse::<u32>() {
-                if u == uid {
-                    return Some(fields[0].to_string());
-                }
-            }
+        if fields.len() >= 3
+            && let Ok(u) = fields[2].parse::<u32>()
+            && u == uid
+        {
+            return Some(fields[0].to_string());
         }
     }
     None

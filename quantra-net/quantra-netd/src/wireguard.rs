@@ -513,9 +513,7 @@ fn build_peer_nla(peer: &WgPeerConfig) -> Result<Vec<u8>> {
         p.extend_from_slice(&WGPEER_A_ENDPOINT.to_ne_bytes());
         p.extend_from_slice(&ep_bytes);
         let pad = (4 - (ep_bytes.len() % 4)) % 4;
-        for _ in 0..pad {
-            p.push(0);
-        }
+        p.resize(p.len() + pad, 0);
     }
 
     // Persistent keepalive (optional)
@@ -527,16 +525,14 @@ fn build_peer_nla(peer: &WgPeerConfig) -> Result<Vec<u8>> {
     }
 
     // AllowedIPs nested
-    for (_i, cidr) in peer.allowed_ips.iter().enumerate() {
+    for cidr in peer.allowed_ips.iter() {
         let aip = parse_allowed_ip_nla(cidr)?;
         let entry_len = (4 + aip.len() as u16).to_ne_bytes();
         p.extend_from_slice(&entry_len);
         p.extend_from_slice(&(WGPEER_A_ALLOWEDIPS | 0x8000).to_ne_bytes());
         p.extend_from_slice(&aip);
         let pad = (4 - (aip.len() % 4)) % 4;
-        for _ in 0..pad {
-            p.push(0);
-        }
+        p.resize(p.len() + pad, 0);
     }
 
     Ok(p)
@@ -607,7 +603,7 @@ pub async fn apply_wg_config(
     for peer in &cfg.peers {
         for cidr in &peer.allowed_ips {
             if cidr == "0.0.0.0/0" || cidr == "::/0" {
-                crate::routing::add_route(handle, cidr, &"0.0.0.0".to_string(), Some(name))
+                crate::routing::add_route(handle, cidr, "0.0.0.0", Some(name))
                     .await
                     .ok(); // non-fatal
             }

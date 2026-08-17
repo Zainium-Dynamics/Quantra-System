@@ -1,23 +1,23 @@
+//! Early filesystem mounting module
+//!
+//! Mounts essential pseudo-filesystems in strict order:
+//! 1. /proc - Kernel interface (REQUIRED for cmdline parsing)
+//! 2. /sys  - Device enumeration (REQUIRED for udev)
+//! 3. /dev  - Device nodes (REQUIRED for block devices)
+//! 4. /run  - Runtime data (mount point setup)
+//! 5. /dev/pts - Container terminals (OPTIONAL - fails silently)
+//! 6. /dev/shm - Shared memory (OPTIONAL - fails silently)
+//!
+//! After /dev is mounted, essential block device nodes are created
+//! explicitly via mknod(2) because devtmpfs does not always auto-populate
+//! loop devices in initramfs context before udevd starts.
+//!
+//! Loop device major/minor numbers (from Linux kernel source):
+//!   /dev/loop-control → major=10, minor=237  (misc device)
+//!   /dev/loop0..7     → major=7,  minor=0..7 (block devices)
+
 use nix::mount::{MsFlags, mount};
 use std::fs;
-
-/// Early filesystem mounting module
-///
-/// Mounts essential pseudo-filesystems in strict order:
-/// 1. /proc - Kernel interface (REQUIRED for cmdline parsing)
-/// 2. /sys  - Device enumeration (REQUIRED for udev)
-/// 3. /dev  - Device nodes (REQUIRED for block devices)
-/// 4. /run  - Runtime data (mount point setup)
-/// 5. /dev/pts - Container terminals (OPTIONAL - fails silently)
-/// 6. /dev/shm - Shared memory (OPTIONAL - fails silently)
-///
-/// After /dev is mounted, essential block device nodes are created
-/// explicitly via mknod(2) because devtmpfs does not always auto-populate
-/// loop devices in initramfs context before udevd starts.
-///
-/// Loop device major/minor numbers (from Linux kernel source):
-///   /dev/loop-control → major=10, minor=237  (misc device)
-///   /dev/loop0..7     → major=7,  minor=0..7 (block devices)
 
 // /proc and /sys: no flags — MS_NOEXEC on /proc breaks elevate/elevate-pam and /proc/self/fd
 const PROC_FLAGS: MsFlags = MsFlags::empty();

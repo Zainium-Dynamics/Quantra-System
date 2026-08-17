@@ -28,10 +28,12 @@ use crate::exec::Exec;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum BondMode {
     /// Round-robin — balance across all slaves (default)
     BalanceRr,
     /// Active-backup — only one active slave, failover on link down
+    #[default]
     ActiveBackup,
     /// XOR balance — hash src+dst MAC
     BalanceXor,
@@ -59,18 +61,14 @@ impl BondMode {
     }
 }
 
-impl Default for BondMode {
-    fn default() -> Self {
-        Self::ActiveBackup
-    }
-}
-
 // ── MACVLAN modes ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum MacvlanMode {
     /// Bridge — macvlans can communicate with each other
+    #[default]
     Bridge,
     /// VEPA — all traffic goes to external switch
     Vepa,
@@ -88,12 +86,6 @@ impl MacvlanMode {
             Self::Private => "private",
             Self::Passthrough => "passthrough",
         }
-    }
-}
-
-impl Default for MacvlanMode {
-    fn default() -> Self {
-        Self::Bridge
     }
 }
 
@@ -386,11 +378,18 @@ mod tests {
         assert!(validate_iface_name("br/0").is_err());
     }
 
-    #[test]
-    fn vlan_id_zero_rejected() {
-        // Can't await in test — just check the error path logic
-        assert!(0u16 == 0); // sanity
-        assert!(4095u16 > 4094);
+    #[tokio::test]
+    async fn vlan_id_zero_rejected() {
+        let exec = crate::exec::MockExec::default();
+        let err = vlan_create(&exec, "vlan0", "eth0", 0).await.unwrap_err();
+        assert!(err.to_string().contains("out of range"));
+    }
+
+    #[tokio::test]
+    async fn vlan_id_too_large_rejected() {
+        let exec = crate::exec::MockExec::default();
+        let err = vlan_create(&exec, "vlan0", "eth0", 4095).await.unwrap_err();
+        assert!(err.to_string().contains("out of range"));
     }
 
     #[test]

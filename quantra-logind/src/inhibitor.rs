@@ -1,21 +1,22 @@
-/// Inhibitor Manager — block/delay power actions with automatic cleanup
-///
-/// # Inhibitor types
-///
-/// `Block` inhibitors prevent an action until explicitly released.
-/// `Delay` inhibitors ask logind to wait up to `InhibitDelayMaxSec` seconds
-/// before proceeding (e.g. to allow an app to save state).
-///
-/// # Flatpak / portal compatibility
-///
-/// xdg-session-portal and GNOME apps take inhibitors via D-Bus/logind.
-/// quantra-logind exposes the same semantics via JSON socket so portals
-/// can be adapted to call us.
-///
-/// # COSMIC desktop
-///
-/// COSMIC shell takes `HandlePowerKey` and `HandleLidSwitch` inhibitors
-/// when the power manager UI is open to prevent accidental shutdown.
+//! Inhibitor Manager — block/delay power actions with automatic cleanup
+//!
+//! # Inhibitor types
+//!
+//! `Block` inhibitors prevent an action until explicitly released.
+//! `Delay` inhibitors ask logind to wait up to `InhibitDelayMaxSec` seconds
+//! before proceeding (e.g. to allow an app to save state).
+//!
+//! # Flatpak / portal compatibility
+//!
+//! xdg-session-portal and GNOME apps take inhibitors via D-Bus/logind.
+//! quantra-logind exposes the same semantics via JSON socket so portals
+//! can be adapted to call us.
+//!
+//! # COSMIC desktop
+//!
+//! COSMIC shell takes `HandlePowerKey` and `HandleLidSwitch` inhibitors
+//! when the power manager UI is open to prevent accidental shutdown.
+
 use crate::types::*;
 use std::collections::HashMap;
 use std::time::Instant;

@@ -50,7 +50,8 @@ toml = "=0.8.8"
 # Force indexmap to pre-edition2024 version (2.14+ requires Rust 1.85+)
 indexmap = "=2.6.0"
 # Native environment resolver (library only, no clap/CLI deps) — the one
-# schema behind PID 1's boot env; also readable via the `oxidized-environment`
-# CLI by quantra-ctl, zainium-installer, and zex without linking Rust. See
+# schema (oxienv.toml) behind PID 1's boot env. quantra-ctl links this same
+# library directly; anything else that can't link Rust (zainium-installer,
+# zex) uses the `oxidized-environment` CLI binary instead. See
 # oxidized-environment-core's docs for why this replaced /etc/profile.d.
-oxidized-environment-core = { git = "https://github.com/Zainium-Dynamics/oxidized-environment.git", rev = "ffa2c5b" }
+oxidized-environment-core = { git = "https://github.com/Zainium-Dynamics/oxidized-environment.git", rev = "fc89876" }

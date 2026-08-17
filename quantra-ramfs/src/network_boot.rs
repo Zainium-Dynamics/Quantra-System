@@ -748,7 +748,7 @@ pub fn enable_ipv6_slaac(iface: &str) -> Result<String, String> {
 }
 
 fn get_ipv6_global(iface: &str) -> Option<String> {
-    let path = format!("/proc/net/if_inet6");
+    let path = "/proc/net/if_inet6".to_string();
     let content = fs::read_to_string(&path).ok()?;
     for line in content.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();

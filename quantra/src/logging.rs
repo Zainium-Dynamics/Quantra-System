@@ -70,18 +70,18 @@ impl Log for ZaiLogger {
         let _ = std::io::stderr().write_all(line.as_bytes());
 
         // Also write to log file if one is open
-        if let Some(ref mtx) = self.file {
-            if let Ok(mut f) = mtx.lock() {
-                let _ = f.write_all(line.as_bytes());
-            }
+        if let Some(ref mtx) = self.file
+            && let Ok(mut f) = mtx.lock()
+        {
+            let _ = f.write_all(line.as_bytes());
         }
     }
 
     fn flush(&self) {
-        if let Some(ref mtx) = self.file {
-            if let Ok(mut f) = mtx.lock() {
-                let _ = f.flush();
-            }
+        if let Some(ref mtx) = self.file
+            && let Ok(mut f) = mtx.lock()
+        {
+            let _ = f.flush();
         }
     }
 }
@@ -148,7 +148,7 @@ fn rfc3339_now() -> String {
 
 #[inline]
 fn is_leap(year: u64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+    (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
 }
 
 /// Initialise the global logger and connect it to stderr + optional log file.

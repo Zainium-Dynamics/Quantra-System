@@ -52,7 +52,6 @@ pub struct ServiceManager {
 
 impl ServiceManager {
     /// Load service definitions, resolve dependencies, return the manager.
-
     ///
     /// Within each wave, every service is started in its own thread.
     /// Wave N+1 begins only after all threads of wave N complete.
@@ -647,108 +646,6 @@ fn validate_service_catalog(services: &[Service], strict: bool) -> Result<()> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{builtin_service, validate_service_catalog};
-    use crate::services::types::{NotifyType, RestartPolicy, SeccompMode, Service};
-    use std::collections::HashMap;
-
-    #[test]
-    fn validation_rejects_duplicate_names_in_strict_mode() {
-        let services = vec![base_service("alpha"), base_service("alpha")];
-        let err = validate_service_catalog(&services, true).unwrap_err();
-        assert!(err.to_string().contains("duplicate service name 'alpha'"));
-    }
-
-    #[test]
-    fn validation_warns_on_unknown_dependency_in_lenient_mode() {
-        let mut svc = base_service("beta");
-        svc.dependencies = vec!["missing".into()];
-
-        validate_service_catalog(&[svc], false).unwrap();
-    }
-
-    #[test]
-    fn validation_rejects_unknown_capability_in_strict_mode() {
-        let mut svc = base_service("cap-test");
-        svc.drop_capabilities = vec!["CAP_NOT_REAL".into()];
-
-        let err = validate_service_catalog(&[svc], true).unwrap_err();
-        assert!(err.to_string().contains("unknown capability"));
-    }
-
-    #[test]
-    fn validation_rejects_missing_seccomp_profile_in_strict_mode() {
-        let mut svc = base_service("seccomp-test");
-        svc.seccomp = SeccompMode::Profile;
-        svc.seccomp_profile = None;
-
-        let err = validate_service_catalog(&[svc], true).unwrap_err();
-        assert!(err.to_string().contains("seccomp='profile'"));
-    }
-
-    #[test]
-    fn builtin_quantra_netd_uses_network_daemon_seccomp_profile() {
-        let svc = builtin_service("quantra-netd");
-        assert_eq!(svc.seccomp, SeccompMode::Profile);
-        assert_eq!(svc.seccomp_profile.as_deref(), Some("network-daemon"));
-        validate_service_catalog(&[svc], true)
-            .expect("builtin quantra-netd should remain valid in strict mode");
-    }
-
-    fn base_service(name: &str) -> Service {
-        Service {
-            name: name.into(),
-            description: None,
-            command: "/bin/true".into(),
-            args: vec![],
-            apparmor_profile: None,
-            no_new_privileges: true,
-            non_dumpable: true,
-            clear_ambient_caps: false,
-            drop_capabilities: vec![],
-            seccomp: SeccompMode::Off,
-            seccomp_profile: None,
-            oneshot: false,
-            console: false,
-            launcher: false,
-            notify_type: NotifyType::Simple,
-            pid_file: None,
-            ready_socket: None,
-            socket_alias: None,
-            tty: None,
-            user: None,
-            group: None,
-            working_dir: None,
-            watchdog_sec: 0,
-            stop_command: None,
-            stop_args: vec![],
-            reload_signal: "SIGHUP".into(),
-            reload_command: None,
-            chain_to: None,
-            chain_to_always: false,
-            env_file: None,
-            environment: None,
-            rlimit: None,
-            restart: RestartPolicy::No,
-            restart_sec: 5,
-            max_restarts: 0,
-            restart_interval_sec: 60,
-            timeout_start: 90,
-            timeout_stop: 30,
-            dependencies: vec![],
-            wants: vec![],
-            milestone: vec![],
-            after: vec![],
-            socket_listen: vec![],
-            cgroup_config: None,
-            healthcheck: None,
-            conditional_dependencies: HashMap::new(),
-            ..Default::default()
-        }
-    }
-}
-
 fn bootstrap_services(services: &[Service]) -> Vec<Service> {
     BUILTIN_BOOTSTRAP_ORDER
         .iter()
@@ -954,4 +851,106 @@ fn load_services_or_default_filtered(cfg: &InitConfig) -> Result<Vec<Service>> {
     };
 
     Ok(report.services)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{builtin_service, validate_service_catalog};
+    use crate::services::types::{NotifyType, RestartPolicy, SeccompMode, Service};
+    use std::collections::HashMap;
+
+    #[test]
+    fn validation_rejects_duplicate_names_in_strict_mode() {
+        let services = vec![base_service("alpha"), base_service("alpha")];
+        let err = validate_service_catalog(&services, true).unwrap_err();
+        assert!(err.to_string().contains("duplicate service name 'alpha'"));
+    }
+
+    #[test]
+    fn validation_warns_on_unknown_dependency_in_lenient_mode() {
+        let mut svc = base_service("beta");
+        svc.dependencies = vec!["missing".into()];
+
+        validate_service_catalog(&[svc], false).unwrap();
+    }
+
+    #[test]
+    fn validation_rejects_unknown_capability_in_strict_mode() {
+        let mut svc = base_service("cap-test");
+        svc.drop_capabilities = vec!["CAP_NOT_REAL".into()];
+
+        let err = validate_service_catalog(&[svc], true).unwrap_err();
+        assert!(err.to_string().contains("unknown capability"));
+    }
+
+    #[test]
+    fn validation_rejects_missing_seccomp_profile_in_strict_mode() {
+        let mut svc = base_service("seccomp-test");
+        svc.seccomp = SeccompMode::Profile;
+        svc.seccomp_profile = None;
+
+        let err = validate_service_catalog(&[svc], true).unwrap_err();
+        assert!(err.to_string().contains("seccomp='profile'"));
+    }
+
+    #[test]
+    fn builtin_quantra_netd_uses_network_daemon_seccomp_profile() {
+        let svc = builtin_service("quantra-netd");
+        assert_eq!(svc.seccomp, SeccompMode::Profile);
+        assert_eq!(svc.seccomp_profile.as_deref(), Some("network-daemon"));
+        validate_service_catalog(&[svc], true)
+            .expect("builtin quantra-netd should remain valid in strict mode");
+    }
+
+    fn base_service(name: &str) -> Service {
+        Service {
+            name: name.into(),
+            description: None,
+            command: "/bin/true".into(),
+            args: vec![],
+            apparmor_profile: None,
+            no_new_privileges: true,
+            non_dumpable: true,
+            clear_ambient_caps: false,
+            drop_capabilities: vec![],
+            seccomp: SeccompMode::Off,
+            seccomp_profile: None,
+            oneshot: false,
+            console: false,
+            launcher: false,
+            notify_type: NotifyType::Simple,
+            pid_file: None,
+            ready_socket: None,
+            socket_alias: None,
+            tty: None,
+            user: None,
+            group: None,
+            working_dir: None,
+            watchdog_sec: 0,
+            stop_command: None,
+            stop_args: vec![],
+            reload_signal: "SIGHUP".into(),
+            reload_command: None,
+            chain_to: None,
+            chain_to_always: false,
+            env_file: None,
+            environment: None,
+            rlimit: None,
+            restart: RestartPolicy::No,
+            restart_sec: 5,
+            max_restarts: 0,
+            restart_interval_sec: 60,
+            timeout_start: 90,
+            timeout_stop: 30,
+            dependencies: vec![],
+            wants: vec![],
+            milestone: vec![],
+            after: vec![],
+            socket_listen: vec![],
+            cgroup_config: None,
+            healthcheck: None,
+            conditional_dependencies: HashMap::new(),
+            ..Default::default()
+        }
+    }
 }

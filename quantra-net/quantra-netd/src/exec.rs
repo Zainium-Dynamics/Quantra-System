@@ -53,10 +53,12 @@ impl Exec for RealExec {
     }
 }
 
+type ScriptedCall = (String, Vec<String>, Result<Output>);
+
 #[derive(Default)]
 pub struct MockExec {
     pub calls: tokio::sync::Mutex<Vec<(String, Vec<String>)>>,
-    pub scripted: tokio::sync::Mutex<VecDeque<(String, Vec<String>, Result<Output>)>>,
+    pub scripted: tokio::sync::Mutex<VecDeque<ScriptedCall>>,
 }
 
 impl MockExec {

@@ -226,17 +226,17 @@ pub fn start_service_as(cfg: &ServiceLaunch<'_>) -> Result<Pid, anyhow::Error> {
                     child_err(b"[zai-init] setgroups failed\n");
                     unsafe { libc::_exit(1) };
                 }
-                if let Some(g) = gid {
-                    if unsafe { libc::setgid(g as libc::gid_t) } != 0 {
-                        child_err(b"[zai-init] setgid failed\n");
-                        unsafe { libc::_exit(1) };
-                    }
+                if let Some(g) = gid
+                    && unsafe { libc::setgid(g as libc::gid_t) } != 0
+                {
+                    child_err(b"[zai-init] setgid failed\n");
+                    unsafe { libc::_exit(1) };
                 }
-                if let Some(u) = uid {
-                    if unsafe { libc::setuid(u as libc::uid_t) } != 0 {
-                        child_err(b"[zai-init] setuid failed\n");
-                        unsafe { libc::_exit(1) };
-                    }
+                if let Some(u) = uid
+                    && unsafe { libc::setuid(u as libc::uid_t) } != 0
+                {
+                    child_err(b"[zai-init] setuid failed\n");
+                    unsafe { libc::_exit(1) };
                 }
             }
 
@@ -267,12 +267,12 @@ pub fn start_service_as(cfg: &ServiceLaunch<'_>) -> Result<Pid, anyhow::Error> {
                 }
             }
 
-            if let Some(profile) = cfg.apparmor_profile {
-                if let Err(e) = apparmor::confine_next_exec(profile) {
-                    child_err(b"[zai-init] AppArmor profile apply failed\n");
-                    let _ = e;
-                    unsafe { libc::_exit(1) };
-                }
+            if let Some(profile) = cfg.apparmor_profile
+                && let Err(e) = apparmor::confine_next_exec(profile)
+            {
+                child_err(b"[zai-init] AppArmor profile apply failed\n");
+                let _ = e;
+                unsafe { libc::_exit(1) };
             }
 
             if !cfg.seccomp_allowlist.is_empty() {
@@ -341,13 +341,13 @@ pub fn start_service_as(cfg: &ServiceLaunch<'_>) -> Result<Pid, anyhow::Error> {
             }
 
             // ── Sandbox: namespace isolation + path protection ────────────
-            if let Some(svc) = cfg.service_for_sandbox {
-                if let Err(e) = crate::sandbox::apply_sandbox(svc) {
-                    child_err(b"[zai-init] sandbox::apply_sandbox failed\n");
-                    child_err(e.to_string().as_bytes());
-                    // Non-fatal by design — log and continue. For strict
-                    // isolation, set service to fail on sandbox error.
-                }
+            if let Some(svc) = cfg.service_for_sandbox
+                && let Err(e) = crate::sandbox::apply_sandbox(svc)
+            {
+                child_err(b"[zai-init] sandbox::apply_sandbox failed\n");
+                child_err(e.to_string().as_bytes());
+                // Non-fatal by design — log and continue. For strict
+                // isolation, set service to fail on sandbox error.
             }
 
             // 7. Build argv/envp pointer arrays (in child's copy of parent memory)

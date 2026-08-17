@@ -113,14 +113,16 @@ pub fn build_listen_env(sockets: &[ActivationSocket]) -> Vec<(String, String)> {
 /// Must only be called in the fork child. All calls are async-signal-safe.
 #[allow(dead_code)] // Called in fork child path — static analysis cannot trace post-fork usage
 pub unsafe fn setup_child_fds(sockets: &[ActivationSocket]) {
-    for (i, sock) in sockets.iter().enumerate() {
-        let target = SD_LISTEN_FDS_START + i as i32;
-        if sock.fd != target {
-            libc::dup2(sock.fd, target);
+    unsafe {
+        for (i, sock) in sockets.iter().enumerate() {
+            let target = SD_LISTEN_FDS_START + i as i32;
+            if sock.fd != target {
+                libc::dup2(sock.fd, target);
+            }
+            // Clear O_CLOEXEC — the fd must survive execvpe
+            let flags = libc::fcntl(target, libc::F_GETFD, 0);
+            libc::fcntl(target, libc::F_SETFD, flags & !libc::FD_CLOEXEC);
         }
-        // Clear O_CLOEXEC — the fd must survive execvpe
-        let flags = libc::fcntl(target, libc::F_GETFD, 0);
-        libc::fcntl(target, libc::F_SETFD, flags & !libc::FD_CLOEXEC);
     }
 }
 
@@ -544,9 +546,7 @@ pub fn run_accept_loop(
             // Reap children non-blocking
             let mut status = 0i32;
             while unsafe { libc::waitpid(-1, &mut status, libc::WNOHANG) } > 0 {
-                if active > 0 {
-                    active -= 1;
-                }
+                active = active.saturating_sub(1);
             }
         } else {
             log::error!(
