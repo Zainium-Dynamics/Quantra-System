@@ -37,7 +37,11 @@ pub struct SeatManager {
 }
 
 impl SeatManager {
-    pub fn new() -> Self { Self { seats: HashMap::new() } }
+    pub fn new() -> Self {
+        Self {
+            seats: HashMap::new(),
+        }
+    }
 
     /// Detect seat0 from /sys/class/drm and /sys/class/input
     pub fn detect(&mut self) -> Result<()> {
@@ -51,8 +55,10 @@ impl SeatManager {
                     let dev = format!("/dev/dri/{}", name);
                     if Path::new(&dev).exists() {
                         seat0.devices.push(SeatDevice {
-                            path: dev, kind: DeviceKind::Drm,
-                            fd: None, paused: false,
+                            path: dev,
+                            kind: DeviceKind::Drm,
+                            fd: None,
+                            paused: false,
                         });
                         seat0.can_graphical = true;
                     }
@@ -68,8 +74,10 @@ impl SeatManager {
                     let dev = format!("/dev/input/{}", name);
                     if Path::new(&dev).exists() {
                         seat0.devices.push(SeatDevice {
-                            path: dev, kind: DeviceKind::Evdev,
-                            fd: None, paused: false,
+                            path: dev,
+                            kind: DeviceKind::Evdev,
+                            fd: None,
+                            paused: false,
                         });
                     }
                 }
@@ -81,16 +89,31 @@ impl SeatManager {
             for e in entries.flatten() {
                 let dev = e.path().to_string_lossy().into_owned();
                 seat0.devices.push(SeatDevice {
-                    path: dev, kind: DeviceKind::Sound,
-                    fd: None, paused: false,
+                    path: dev,
+                    kind: DeviceKind::Sound,
+                    fd: None,
+                    paused: false,
                 });
             }
         }
 
-        log::info!("seat0: {} DRM, {} evdev, {} sound devices",
-            seat0.devices.iter().filter(|d| d.kind == DeviceKind::Drm).count(),
-            seat0.devices.iter().filter(|d| d.kind == DeviceKind::Evdev).count(),
-            seat0.devices.iter().filter(|d| d.kind == DeviceKind::Sound).count(),
+        log::info!(
+            "seat0: {} DRM, {} evdev, {} sound devices",
+            seat0
+                .devices
+                .iter()
+                .filter(|d| d.kind == DeviceKind::Drm)
+                .count(),
+            seat0
+                .devices
+                .iter()
+                .filter(|d| d.kind == DeviceKind::Evdev)
+                .count(),
+            seat0
+                .devices
+                .iter()
+                .filter(|d| d.kind == DeviceKind::Sound)
+                .count(),
         );
 
         seat0.can_tty = Path::new("/dev/tty0").exists();
@@ -100,7 +123,9 @@ impl SeatManager {
 
     pub fn add_session(&mut self, seat_id: &str, sid: SessionId) {
         if let Some(seat) = self.seats.get_mut(seat_id) {
-            if !seat.sessions.contains(&sid) { seat.sessions.push(sid); }
+            if !seat.sessions.contains(&sid) {
+                seat.sessions.push(sid);
+            }
             if seat.active_session.is_none() {
                 seat.active_session = Some(sid);
                 log::info!("seat {}: session {} active (first)", seat_id, sid);
@@ -113,14 +138,20 @@ impl SeatManager {
             seat.sessions.retain(|&s| s != sid);
             if seat.active_session == Some(sid) {
                 seat.active_session = seat.sessions.first().copied();
-                log::info!("seat {}: {} removed, active now: {:?}",
-                    seat_id, sid, seat.active_session);
+                log::info!(
+                    "seat {}: {} removed, active now: {:?}",
+                    seat_id,
+                    sid,
+                    seat.active_session
+                );
             }
         }
     }
 
     pub fn activate(&mut self, seat_id: &str, sid: SessionId) -> Result<()> {
-        let seat = self.seats.get_mut(seat_id)
+        let seat = self
+            .seats
+            .get_mut(seat_id)
             .ok_or_else(|| anyhow::anyhow!("seat {} not found", seat_id))?;
         if !seat.sessions.contains(&sid) {
             return Err(anyhow::anyhow!("session {} not on seat {}", sid, seat_id));
@@ -143,16 +174,26 @@ impl SeatManager {
 
         let tty_path = std::ffi::CString::new("/dev/tty0").unwrap();
         let fd = unsafe {
-            libc::open(tty_path.as_ptr(), libc::O_RDWR | libc::O_CLOEXEC | libc::O_NOCTTY)
+            libc::open(
+                tty_path.as_ptr(),
+                libc::O_RDWR | libc::O_CLOEXEC | libc::O_NOCTTY,
+            )
         };
         if fd < 0 {
-            return Err(anyhow::anyhow!("/dev/tty0: {}", std::io::Error::last_os_error()));
+            return Err(anyhow::anyhow!(
+                "/dev/tty0: {}",
+                std::io::Error::last_os_error()
+            ));
         }
 
         let ret = unsafe { libc::ioctl(fd, VT_ACTIVATE, vt as libc::c_long) };
         if ret != 0 {
             unsafe { libc::close(fd) };
-            return Err(anyhow::anyhow!("VT_ACTIVATE {}: {}", vt, std::io::Error::last_os_error()));
+            return Err(anyhow::anyhow!(
+                "VT_ACTIVATE {}: {}",
+                vt,
+                std::io::Error::last_os_error()
+            ));
         }
 
         // Wait for VT switch to complete
@@ -170,11 +211,15 @@ impl SeatManager {
     /// The compositor (COSMIC, wlroots, Mutter) calls TakeDevice to get an
     /// fd to /dev/dri/cardN or /dev/input/eventN without needing root.
     pub fn take_device(&mut self, seat_id: &str, devpath: &str) -> Result<RawFd> {
-        let seat = self.seats.get_mut(seat_id)
+        let seat = self
+            .seats
+            .get_mut(seat_id)
             .ok_or_else(|| anyhow::anyhow!("seat {} not found", seat_id))?;
 
         // Verify device belongs to this seat
-        let dev_entry = seat.devices.iter_mut()
+        let dev_entry = seat
+            .devices
+            .iter_mut()
             .find(|d| d.path == devpath)
             .ok_or_else(|| anyhow::anyhow!("device {} not on seat {}", devpath, seat_id))?;
 
@@ -185,9 +230,9 @@ impl SeatManager {
 
         // Open device
         let flags = match dev_entry.kind {
-            DeviceKind::Drm   => libc::O_RDWR | libc::O_CLOEXEC | libc::O_NOCTTY,
+            DeviceKind::Drm => libc::O_RDWR | libc::O_CLOEXEC | libc::O_NOCTTY,
             DeviceKind::Evdev => libc::O_RDWR | libc::O_CLOEXEC | libc::O_NOCTTY,
-            _                 => libc::O_RDONLY | libc::O_CLOEXEC,
+            _ => libc::O_RDONLY | libc::O_CLOEXEC,
         };
 
         let path_cstr = std::ffi::CString::new(devpath)
@@ -195,7 +240,11 @@ impl SeatManager {
 
         let fd = unsafe { libc::open(path_cstr.as_ptr(), flags) };
         if fd < 0 {
-            return Err(anyhow::anyhow!("open {}: {}", devpath, std::io::Error::last_os_error()));
+            return Err(anyhow::anyhow!(
+                "open {}: {}",
+                devpath,
+                std::io::Error::last_os_error()
+            ));
         }
 
         dev_entry.fd = Some(fd);
@@ -205,14 +254,17 @@ impl SeatManager {
 
     /// Release a device fd previously taken by TakeDevice.
     pub fn release_device(&mut self, seat_id: &str, devpath: &str) -> Result<()> {
-        let seat = self.seats.get_mut(seat_id)
+        let seat = self
+            .seats
+            .get_mut(seat_id)
             .ok_or_else(|| anyhow::anyhow!("seat {} not found", seat_id))?;
 
         if let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath)
-            && let Some(fd) = dev.fd.take() {
-                unsafe { libc::close(fd) };
-                log::info!("ReleaseDevice: {} fd closed", devpath);
-            }
+            && let Some(fd) = dev.fd.take()
+        {
+            unsafe { libc::close(fd) };
+            log::info!("ReleaseDevice: {} fd closed", devpath);
+        }
         Ok(())
     }
 
@@ -220,29 +272,33 @@ impl SeatManager {
     #[allow(dead_code)]
     pub fn pause_device(&mut self, seat_id: &str, devpath: &str) {
         if let Some(seat) = self.seats.get_mut(seat_id)
-            && let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath) {
-                dev.paused = true;
-                // For DRM: set master to nobody so session loses modesetting control
-                if dev.kind == DeviceKind::Drm
-                    && let Some(fd) = dev.fd {
-                        const DRM_IOCTL_DROP_MASTER: libc::c_ulong = 0x64;
-                        unsafe { libc::ioctl(fd, DRM_IOCTL_DROP_MASTER, 0) };
-                    }
+            && let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath)
+        {
+            dev.paused = true;
+            // For DRM: set master to nobody so session loses modesetting control
+            if dev.kind == DeviceKind::Drm
+                && let Some(fd) = dev.fd
+            {
+                const DRM_IOCTL_DROP_MASTER: libc::c_ulong = 0x64;
+                unsafe { libc::ioctl(fd, DRM_IOCTL_DROP_MASTER, 0) };
             }
+        }
     }
 
     /// Resume a device (called when VT switches back to session).
     #[allow(dead_code)]
     pub fn resume_device(&mut self, seat_id: &str, devpath: &str) {
         if let Some(seat) = self.seats.get_mut(seat_id)
-            && let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath) {
-                dev.paused = false;
-                if dev.kind == DeviceKind::Drm
-                    && let Some(fd) = dev.fd {
-                        const DRM_IOCTL_SET_MASTER: libc::c_ulong = 0x1e;
-                        unsafe { libc::ioctl(fd, DRM_IOCTL_SET_MASTER, 0) };
-                    }
+            && let Some(dev) = seat.devices.iter_mut().find(|d| d.path == devpath)
+        {
+            dev.paused = false;
+            if dev.kind == DeviceKind::Drm
+                && let Some(fd) = dev.fd
+            {
+                const DRM_IOCTL_SET_MASTER: libc::c_ulong = 0x1e;
+                unsafe { libc::ioctl(fd, DRM_IOCTL_SET_MASTER, 0) };
             }
+        }
     }
 
     /// Get current VT number from kernel.
@@ -250,19 +306,40 @@ impl SeatManager {
     pub fn current_vt(&self) -> Option<u32> {
         const VT_GETSTATE: libc::c_ulong = 0x5603;
         #[repr(C)]
-        struct VtStat { v_active: u16, v_signal: u16, v_state: u16 }
+        struct VtStat {
+            v_active: u16,
+            v_signal: u16,
+            v_state: u16,
+        }
 
         let tty_cstr = std::ffi::CString::new("/dev/tty0").unwrap();
-        let fd = unsafe { libc::open(tty_cstr.as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NOCTTY) };
-        if fd < 0 { return None; }
+        let fd = unsafe {
+            libc::open(
+                tty_cstr.as_ptr(),
+                libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NOCTTY,
+            )
+        };
+        if fd < 0 {
+            return None;
+        }
 
         let mut state: VtStat = unsafe { std::mem::zeroed() };
         let ret = unsafe { libc::ioctl(fd, VT_GETSTATE, &mut state as *mut VtStat) };
         unsafe { libc::close(fd) };
-        if ret == 0 { Some(state.v_active as u32) } else { None }
+        if ret == 0 {
+            Some(state.v_active as u32)
+        } else {
+            None
+        }
     }
 
-    pub fn get(&self, id: &str)  -> Option<&Seat> { self.seats.get(id) }
-    pub fn all(&self)             -> Vec<&Seat>    { self.seats.values().collect() }
-    pub fn list(&self)            -> Vec<&str>     { self.seats.keys().map(|s| s.as_str()).collect() }
+    pub fn get(&self, id: &str) -> Option<&Seat> {
+        self.seats.get(id)
+    }
+    pub fn all(&self) -> Vec<&Seat> {
+        self.seats.values().collect()
+    }
+    pub fn list(&self) -> Vec<&str> {
+        self.seats.keys().map(|s| s.as_str()).collect()
+    }
 }

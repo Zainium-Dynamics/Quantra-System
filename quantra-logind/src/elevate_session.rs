@@ -33,8 +33,8 @@ const ELEVATE_PAM_SERVICE_DIRS: &[&str] = &[
 
 #[allow(dead_code)]
 fn call_logind(request: &serde_json::Value) -> Result<serde_json::Value, String> {
-    let mut stream = UnixStream::connect(LOGIND_SOCKET)
-        .map_err(|e| format!("connect {LOGIND_SOCKET}: {e}"))?;
+    let mut stream =
+        UnixStream::connect(LOGIND_SOCKET).map_err(|e| format!("connect {LOGIND_SOCKET}: {e}"))?;
 
     let bytes = serde_json::to_vec(request).map_err(|e| format!("serialize: {e}"))?;
     let len = (bytes.len() as u32).to_le_bytes();
@@ -197,8 +197,9 @@ pub fn write_elevate_pam_stacks() -> std::io::Result<()> {
     // Drop a short README so ops never recreate pam.d by habit
     let note = dir.parent().map(|p| p.join("README.zainium"));
     if let Some(p) = note
-        && !p.exists() {
-            let body = "\
+        && !p.exists()
+    {
+        let body = "\
 # elevate-pam on Zainium OS
 #
 # Classic Linux /etc/pam.d is NOT used.
@@ -209,8 +210,8 @@ pub fn write_elevate_pam_stacks() -> std::io::Result<()> {
 #
 # Do not install or write pam.d files.
 ";
-            fs::write(p, body)?;
-        }
+        fs::write(p, body)?;
+    }
 
     log::info!(
         "elevate-pam stacks ready under {} (no pam.d)",

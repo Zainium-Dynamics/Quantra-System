@@ -29,23 +29,21 @@ const UT_HOSTSIZE: usize = 256;
 
 // ut_type values
 #[allow(dead_code)]
-const EMPTY:         i16 = 0;
+const EMPTY: i16 = 0;
 #[allow(dead_code)]
-const RUN_LVL:       i16 = 1;
-const BOOT_TIME:     i16 = 2;
-const USER_PROCESS:  i16 = 7;
-const DEAD_PROCESS:  i16 = 8;
+const RUN_LVL: i16 = 1;
+const BOOT_TIME: i16 = 2;
+const USER_PROCESS: i16 = 7;
+const DEAD_PROCESS: i16 = 8;
 
 /// Write a user login record to utmp and wtmp.
-pub fn write_login(
-    pid: u32,
-    tty: &str,
-    username: &str,
-    remote_host: &str,
-    session_id: u64,
-) {
+pub fn write_login(pid: u32, tty: &str, username: &str, remote_host: &str, session_id: u64) {
     let rec = build_utmp(
-        USER_PROCESS, pid, tty, username, remote_host,
+        USER_PROCESS,
+        pid,
+        tty,
+        username,
+        remote_host,
         &format!("{}", session_id),
     );
     write_utmp_record(&rec);
@@ -70,41 +68,37 @@ pub fn write_boot_time() {
 // ── Raw utmp struct (glibc layout, 384 bytes) ─────────────────────────────────
 
 #[repr(C)]
-struct UtExit { e_termination: i16, e_exit: i16 }
+struct UtExit {
+    e_termination: i16,
+    e_exit: i16,
+}
 
 #[repr(C)]
 struct Utmp {
-    ut_type:    i16,
-    _pad0:      [u8; 2],
-    ut_pid:     i32,
-    ut_line:    [u8; UT_LINESIZE],
-    ut_id:      [u8; 4],
-    ut_user:    [u8; UT_NAMESIZE],
-    ut_host:    [u8; UT_HOSTSIZE],
-    ut_exit:    UtExit,
+    ut_type: i16,
+    _pad0: [u8; 2],
+    ut_pid: i32,
+    ut_line: [u8; UT_LINESIZE],
+    ut_id: [u8; 4],
+    ut_user: [u8; UT_NAMESIZE],
+    ut_host: [u8; UT_HOSTSIZE],
+    ut_exit: UtExit,
     ut_session: i32,
-    ut_tv_sec:  i32,
+    ut_tv_sec: i32,
     ut_tv_usec: i32,
     ut_addr_v6: [u32; 4],
-    __unused:   [u8; 20],
+    __unused: [u8; 20],
 }
 
-fn build_utmp(
-    ut_type: i16,
-    pid: u32,
-    tty: &str,
-    user: &str,
-    host: &str,
-    id: &str,
-) -> Utmp {
+fn build_utmp(ut_type: i16, pid: u32, tty: &str, user: &str, host: &str, id: &str) -> Utmp {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
 
     let mut rec: Utmp = unsafe { std::mem::zeroed() };
-    rec.ut_type    = ut_type;
-    rec.ut_pid     = pid as i32;
-    rec.ut_tv_sec  = now.as_secs() as i32;
+    rec.ut_type = ut_type;
+    rec.ut_pid = pid as i32;
+    rec.ut_tv_sec = now.as_secs() as i32;
     rec.ut_tv_usec = now.subsec_micros() as i32;
 
     copy_str(&mut rec.ut_line, tty.trim_start_matches("/dev/"));
@@ -149,11 +143,9 @@ fn write_utmp_record(rec: &Utmp) {
         for i in 0..n {
             let start = i * rec_size;
             let existing = &data[start..start + rec_size];
-            let existing_pid = i32::from_ne_bytes([
-                existing[4], existing[5], existing[6], existing[7]
-            ]);
-            if existing_pid == rec.ut_pid
-               || existing[8..8 + 32] == rec.ut_line[..] {
+            let existing_pid =
+                i32::from_ne_bytes([existing[4], existing[5], existing[6], existing[7]]);
+            if existing_pid == rec.ut_pid || existing[8..8 + 32] == rec.ut_line[..] {
                 // Overwrite this record
                 data[start..start + rec_size].copy_from_slice(bytes);
                 std::fs::write(UTMP_PATH, &data).ok();

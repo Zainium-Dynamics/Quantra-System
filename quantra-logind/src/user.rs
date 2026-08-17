@@ -40,10 +40,20 @@ pub struct UserManager {
 }
 
 impl UserManager {
-    pub fn new() -> Self { Self { users: HashMap::new() } }
+    pub fn new() -> Self {
+        Self {
+            users: HashMap::new(),
+        }
+    }
 
     /// Called when a session is opened for this user.
-    pub fn login(&mut self, uid: u32, username: String, sid: SessionId, config: &LogindConfig) -> Result<()> {
+    pub fn login(
+        &mut self,
+        uid: u32,
+        username: String,
+        sid: SessionId,
+        config: &LogindConfig,
+    ) -> Result<()> {
         if let Some(u) = self.users.get_mut(&uid) {
             if !u.session_ids.contains(&sid) {
                 u.session_ids.push(sid);
@@ -66,7 +76,12 @@ impl UserManager {
         rec.state = UserState::Online;
         self.users.insert(uid, rec);
 
-        log::info!("User {} (uid={}) first login → {}", username, uid, runtime_dir);
+        log::info!(
+            "User {} (uid={}) first login → {}",
+            username,
+            uid,
+            runtime_dir
+        );
         Ok(())
     }
 
@@ -76,7 +91,11 @@ impl UserManager {
             u.session_ids.retain(|&s| s != sid);
             let empty = u.session_ids.is_empty();
             if empty {
-                u.state = if u.linger { UserState::Lingering } else { UserState::Closing };
+                u.state = if u.linger {
+                    UserState::Lingering
+                } else {
+                    UserState::Closing
+                };
             }
             empty && !u.linger
         } else {
@@ -84,13 +103,13 @@ impl UserManager {
         };
 
         if cleanup {
-            let delay      = config.user_stop_delay_sec;
+            let delay = config.user_stop_delay_sec;
             let kill_procs = config.kill_user_processes;
-            let kill_only  = config.kill_only_users.clone();
-            let kill_excl  = config.kill_exclude_users.clone();
+            let kill_only = config.kill_only_users.clone();
+            let kill_excl = config.kill_exclude_users.clone();
             let remove_ipc = config.remove_ipc;
-            let rec        = self.users.remove(&uid).unwrap();
-            let username   = rec.username.clone();
+            let rec = self.users.remove(&uid).unwrap();
+            let username = rec.username.clone();
 
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(delay));
@@ -104,7 +123,11 @@ impl UserManager {
                     };
 
                     if should_kill {
-                        log::info!("KillUserProcesses: sending SIGTERM to uid={} ({})", uid, username);
+                        log::info!(
+                            "KillUserProcesses: sending SIGTERM to uid={} ({})",
+                            uid,
+                            username
+                        );
                         kill_all_user_processes(uid, libc::SIGTERM);
                         std::thread::sleep(std::time::Duration::from_secs(5));
                         kill_all_user_processes(uid, libc::SIGKILL);
@@ -123,8 +146,13 @@ impl UserManager {
                 log::info!("User uid={} cleanup complete", uid);
             });
 
-            log::info!("User uid={} ({}) logged out — cleanup in {}s (kill={})",
-                uid, rec.username, delay, kill_procs);
+            log::info!(
+                "User uid={} ({}) logged out — cleanup in {}s (kill={})",
+                uid,
+                rec.username,
+                delay,
+                kill_procs
+            );
         }
         Ok(())
     }
@@ -132,8 +160,7 @@ impl UserManager {
     pub fn set_linger(&mut self, uid: u32, enable: bool) -> Result<()> {
         // Persist linger state
         let linger_dir = "/var/lib/quantra-logind/linger";
-        fs::create_dir_all(linger_dir)
-            .map_err(|e| anyhow::anyhow!("create linger dir: {}", e))?;
+        fs::create_dir_all(linger_dir).map_err(|e| anyhow::anyhow!("create linger dir: {}", e))?;
         let linger_file = format!("{}/{}", linger_dir, uid);
 
         if enable {
@@ -184,7 +211,11 @@ impl UserManager {
     pub fn update_state(&mut self, uid: u32, has_active_session: bool) {
         if let Some(u) = self.users.get_mut(&uid) {
             u.state = if u.session_ids.is_empty() {
-                if u.linger { UserState::Lingering } else { UserState::Offline }
+                if u.linger {
+                    UserState::Lingering
+                } else {
+                    UserState::Offline
+                }
             } else if has_active_session {
                 UserState::Active
             } else {
@@ -199,16 +230,19 @@ impl UserManager {
         if let Ok(entries) = fs::read_dir(linger_dir) {
             for entry in entries.flatten() {
                 if let Ok(uid) = entry.file_name().to_string_lossy().parse::<u32>()
-                    && let Some(username) = resolve_username(uid) {
-                        log::info!("Restoring linger for uid={}", uid);
-                        self.set_linger(uid, true).ok();
-                        let _ = username;
-                    }
+                    && let Some(username) = resolve_username(uid)
+                {
+                    log::info!("Restoring linger for uid={}", uid);
+                    self.set_linger(uid, true).ok();
+                    let _ = username;
+                }
             }
         }
     }
 
-    pub fn get(&self, uid: u32) -> Option<&UserRecord> { self.users.get(&uid) }
+    pub fn get(&self, uid: u32) -> Option<&UserRecord> {
+        self.users.get(&uid)
+    }
     pub fn all(&self) -> Vec<&UserRecord> {
         let mut v: Vec<&UserRecord> = self.users.values().collect();
         v.sort_by_key(|u| u.uid);
@@ -222,8 +256,7 @@ impl UserManager {
 ///
 /// Size: 10% of RAM (matching systemd default) or config override.
 fn create_runtime_dir(path: &str, uid: u32, config: &LogindConfig) -> Result<()> {
-    fs::create_dir_all(path)
-        .map_err(|e| anyhow::anyhow!("create {}: {}", path, e))?;
+    fs::create_dir_all(path).map_err(|e| anyhow::anyhow!("create {}: {}", path, e))?;
 
     // Determine size
     let size = match &config.runtime_directory_size {
@@ -256,8 +289,11 @@ fn create_runtime_dir(path: &str, uid: u32, config: &LogindConfig) -> Result<()>
         log::debug!("tmpfs {} (uid={} size={})", path, uid, size);
     } else {
         // Fallback: plain dir with chown (containers, no CAP_SYS_ADMIN)
-        log::warn!("tmpfs mount {} failed ({}), using plain dir fallback",
-            path, std::io::Error::last_os_error());
+        log::warn!(
+            "tmpfs mount {} failed ({}), using plain dir fallback",
+            path,
+            std::io::Error::last_os_error()
+        );
         let mut perms = fs::metadata(path)?.permissions();
         perms.set_mode(0o700);
         fs::set_permissions(path, perms)?;
@@ -281,11 +317,11 @@ fn create_runtime_dir(path: &str, uid: u32, config: &LogindConfig) -> Result<()>
 /// - xdg-portal:        xdg-desktop-portal/
 fn create_runtime_subdirs(runtime_dir: &str, uid: u32) -> Result<()> {
     let dirs = [
-        format!("{}/systemd",                   runtime_dir),
-        format!("{}/systemd/private",           runtime_dir),
-        format!("{}/doc",                        runtime_dir), // Flatpak document portal
-        format!("{}/portal",                     runtime_dir), // xdg-desktop-portal
-        format!("{}/xdg-desktop-portal",         runtime_dir),
+        format!("{}/systemd", runtime_dir),
+        format!("{}/systemd/private", runtime_dir),
+        format!("{}/doc", runtime_dir),    // Flatpak document portal
+        format!("{}/portal", runtime_dir), // xdg-desktop-portal
+        format!("{}/xdg-desktop-portal", runtime_dir),
     ];
 
     for dir in &dirs {
@@ -317,16 +353,20 @@ fn destroy_runtime_dir(path: &str) -> Result<()> {
         libc::umount2(path_cstr.as_ptr(), libc::MNT_DETACH);
     }
     match fs::remove_dir_all(path) {
-        Ok(())                                              => log::debug!("Removed {}", path),
+        Ok(()) => log::debug!("Removed {}", path),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e)                                              => log::warn!("remove {}: {}", path, e),
+        Err(e) => log::warn!("remove {}: {}", path, e),
     }
     Ok(())
 }
 
 fn get_runtime_dir(uid: u32) -> Option<String> {
     let path = format!("/run/user/{}", uid);
-    if Path::new(&path).exists() { Some(path) } else { None }
+    if Path::new(&path).exists() {
+        Some(path)
+    } else {
+        None
+    }
 }
 
 // ── User slice cgroup ─────────────────────────────────────────────────────────
@@ -354,7 +394,9 @@ fn terminate_user_slice(uid: u32) -> Result<()> {
     if let Ok(procs) = fs::read_to_string(format!("{}/cgroup.procs", slice)) {
         for line in procs.lines() {
             if let Ok(pid) = line.trim().parse::<i32>() {
-                unsafe { libc::kill(pid, libc::SIGTERM); }
+                unsafe {
+                    libc::kill(pid, libc::SIGTERM);
+                }
             }
         }
     }
@@ -369,12 +411,18 @@ fn terminate_user_slice(uid: u32) -> Result<()> {
 /// Walks /proc and sends signal to every process whose /proc/N/status
 /// shows Uid matching uid. Skips PID 1 and the current process.
 fn kill_all_user_processes(uid: u32, sig: libc::c_int) {
-    let Ok(proc_dir) = std::fs::read_dir("/proc") else { return };
+    let Ok(proc_dir) = std::fs::read_dir("/proc") else {
+        return;
+    };
     for entry in proc_dir.flatten() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        let Ok(pid) = name.parse::<i32>() else { continue };
-        if pid <= 1 || pid == unsafe { libc::getpid() } { continue; }
+        let Ok(pid) = name.parse::<i32>() else {
+            continue;
+        };
+        if pid <= 1 || pid == unsafe { libc::getpid() } {
+            continue;
+        }
 
         // Read /proc/<pid>/status to get Uid line
         let status_path = format!("/proc/{}/status", pid);
@@ -403,7 +451,11 @@ fn remove_user_ipc(uid: u32) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Ok(meta) = fs::metadata(&path) {
-                let res = { use std::os::unix::fs::MetadataExt; meta.uid() == uid || (meta.gid() == uid && meta.mode() & 0o2 != 0) }; if res {
+                let res = {
+                    use std::os::unix::fs::MetadataExt;
+                    meta.uid() == uid || (meta.gid() == uid && meta.mode() & 0o2 != 0)
+                };
+                if res {
                     fs::remove_file(&path).ok();
                     log::debug!("IPC cleanup: removed {:?}", path);
                 }
@@ -437,9 +489,10 @@ fn resolve_username(uid: u32) -> Option<String> {
         let fields: Vec<&str> = line.split(':').collect();
         if fields.len() >= 3
             && let Ok(u) = fields[2].parse::<u32>()
-                && u == uid { return Some(fields[0].to_string()); }
+            && u == uid
+        {
+            return Some(fields[0].to_string());
+        }
     }
     None
 }
-
-
