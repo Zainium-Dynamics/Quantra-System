@@ -1,19 +1,20 @@
-/// Session Manager
-///
-/// Manages login sessions. Each session maps to one logged-in user interaction
-/// context — a VT session, an SSH connection, a Wayland compositor instance, etc.
-///
-/// # Flatpak / xdg-portal compatibility
-///
-/// Flatpak calls `GetSessionByPid()` to identify the calling session and
-/// thereby determine which XDG portal backend to use.
-/// `session_by_pid()` scans cgroup membership to find the session.
-///
-/// # COSMIC desktop compatibility
-///
-/// COSMIC compositor (cosmic-comp) opens a Wayland session via `OpenSession`
-/// with `session_type=wayland`. It queries `GetSession` to get the VT number
-/// and runtime_dir for socket placement.
+//! Session Manager
+//!
+//! Manages login sessions. Each session maps to one logged-in user interaction
+//! context — a VT session, an SSH connection, a Wayland compositor instance, etc.
+//!
+//! # Flatpak / xdg-portal compatibility
+//!
+//! Flatpak calls `GetSessionByPid()` to identify the calling session and
+//! thereby determine which XDG portal backend to use.
+//! `session_by_pid()` scans cgroup membership to find the session.
+//!
+//! # COSMIC desktop compatibility
+//!
+//! COSMIC compositor (cosmic-comp) opens a Wayland session via `OpenSession`
+//! with `session_type=wayland`. It queries `GetSession` to get the VT number
+//! and runtime_dir for socket placement.
+
 use crate::types::*;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -23,95 +24,67 @@ use std::path::Path;
 #[allow(dead_code)]
 pub struct SessionManager {
     sessions: HashMap<SessionId, Session>,
-    next_id: SessionId,
+    next_id:  SessionId,
     /// Subscribers waiting for events (write fds)
     pub event_sinks: Vec<std::os::unix::net::UnixStream>,
 }
 
 impl SessionManager {
     pub fn new() -> Self {
-        Self {
-            sessions: HashMap::new(),
-            next_id: 1,
-            event_sinks: Vec::new(),
-        }
+        Self { sessions: HashMap::new(), next_id: 1, event_sinks: Vec::new() }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn open(
         &mut self,
-        uid: u32,
-        username: String,
-        leader_pid: u32,
-        session_type: SessionType,
-        session_class: SessionClass,
-        tty: Option<String>,
-        display: Option<String>,
-        remote_host: Option<String>,
-        remote_user: Option<String>,
-        service: Option<String>,
-        vt: Option<u32>,
+        uid: u32, username: String, leader_pid: u32,
+        session_type: SessionType, session_class: SessionClass,
+        tty: Option<String>, display: Option<String>,
+        remote_host: Option<String>, remote_user: Option<String>,
+        service: Option<String>, vt: Option<u32>,
     ) -> Result<SessionId> {
         let id = self.next_id;
         self.next_id += 1;
 
         let remote = remote_host.is_some();
-        let mut s = Session::new(
-            id,
-            uid,
-            username.clone(),
-            leader_pid,
-            session_type,
-            session_class,
-        );
-        s.tty = tty.clone();
-        s.display = display;
+        let mut s = Session::new(id, uid, username.clone(), leader_pid,
+                                 session_type, session_class);
+        s.tty         = tty.clone();
+        s.display     = display;
         s.remote_host = remote_host;
         s.remote_user = remote_user;
-        s.remote = remote;
-        s.service = service;
-        s.vt_number = vt.or_else(|| tty.as_deref().and_then(extract_vt_number));
+        s.remote      = remote;
+        s.service     = service;
+        s.vt_number   = vt.or_else(|| tty.as_deref().and_then(extract_vt_number));
 
         // Create cgroup scope for session
         create_session_scope(id, uid, leader_pid)?;
 
-        log::info!(
-            "Session {} opened: user={} uid={} pid={} type={:?} vt={:?}",
-            id,
-            s.username,
-            uid,
-            leader_pid,
-            s.session_type,
-            s.vt_number
-        );
+        log::info!("Session {} opened: user={} uid={} pid={} type={:?} vt={:?}",
+            id, s.username, uid, leader_pid, s.session_type, s.vt_number);
 
         self.sessions.insert(id, s);
         Ok(id)
     }
 
     pub fn close(&mut self, id: SessionId) -> Result<()> {
-        let sess = self
-            .sessions
-            .get_mut(&id)
+        let sess = self.sessions.get_mut(&id)
             .ok_or_else(|| anyhow::anyhow!("session {} not found", id))?;
         sess.state = SessionState::Closing;
 
         // Remove cgroup scope
         remove_session_scope(id);
 
-        self.sessions
-            .remove(&id)
+        self.sessions.remove(&id)
             .map(|_| log::info!("Session {} closed", id))
             .ok_or_else(|| anyhow::anyhow!("session {} vanished during close", id))
     }
 
     pub fn activate(&mut self, id: SessionId) -> Result<()> {
         // Get the seat of this session for deactivating others
-        let seat = self
-            .sessions
-            .get(&id)
+        let seat = self.sessions.get(&id)
             .ok_or_else(|| anyhow::anyhow!("session {} not found", id))?
-            .seat
-            .clone();
+            .seat.clone();
 
         // Deactivate all other sessions on same seat
         for s in self.sessions.values_mut() {
@@ -128,9 +101,7 @@ impl SessionManager {
     }
 
     pub fn lock(&mut self, id: SessionId) -> Result<()> {
-        let sess = self
-            .sessions
-            .get_mut(&id)
+        let sess = self.sessions.get_mut(&id)
             .ok_or_else(|| anyhow::anyhow!("session {} not found", id))?;
         sess.locked_hint = true;
         // Send SIGUSR2 to session leader (conventional lock signal for compositors)
@@ -143,9 +114,7 @@ impl SessionManager {
     }
 
     pub fn unlock(&mut self, id: SessionId) -> Result<()> {
-        let sess = self
-            .sessions
-            .get_mut(&id)
+        let sess = self.sessions.get_mut(&id)
             .ok_or_else(|| anyhow::anyhow!("session {} not found", id))?;
         sess.locked_hint = false;
         log::info!("Session {} unlocked", id);
@@ -154,22 +123,16 @@ impl SessionManager {
 
     pub fn lock_all(&mut self) {
         let ids: Vec<SessionId> = self.sessions.keys().copied().collect();
-        for id in ids {
-            self.lock(id).ok();
-        }
+        for id in ids { self.lock(id).ok(); }
     }
 
     pub fn unlock_all(&mut self) {
         let ids: Vec<SessionId> = self.sessions.keys().copied().collect();
-        for id in ids {
-            self.unlock(id).ok();
-        }
+        for id in ids { self.unlock(id).ok(); }
     }
 
     pub fn set_idle_hint(&mut self, id: SessionId, idle: bool) -> Result<()> {
-        let sess = self
-            .sessions
-            .get_mut(&id)
+        let sess = self.sessions.get_mut(&id)
             .ok_or_else(|| anyhow::anyhow!("session {} not found", id))?;
         sess.idle_hint = idle;
         sess.idle_since = if idle { Some(now_unix()) } else { None };
@@ -177,18 +140,14 @@ impl SessionManager {
     }
 
     pub fn set_locked_hint(&mut self, id: SessionId, locked: bool) -> Result<()> {
-        let sess = self
-            .sessions
-            .get_mut(&id)
+        let sess = self.sessions.get_mut(&id)
             .ok_or_else(|| anyhow::anyhow!("session {} not found", id))?;
         sess.locked_hint = locked;
         Ok(())
     }
 
     pub fn assign_seat(&mut self, id: SessionId, seat: String) {
-        if let Some(s) = self.sessions.get_mut(&id) {
-            s.seat = Some(seat);
-        }
+        if let Some(s) = self.sessions.get_mut(&id) { s.seat = Some(seat); }
     }
 
     pub fn uid_of(&self, id: SessionId) -> Option<u32> {
@@ -232,11 +191,10 @@ impl SessionManager {
         }
 
         // Parent process scan — walk up ppid chain
-        if let Some(ppid) = get_ppid(pid) {
-            if ppid != pid && ppid > 1 {
+        if let Some(ppid) = get_ppid(pid)
+            && ppid != pid && ppid > 1 {
                 return self.session_by_pid(ppid);
             }
-        }
 
         None
     }
@@ -250,9 +208,7 @@ impl SessionManager {
     /// Kill all processes in a session cgroup.
     #[allow(dead_code)]
     pub fn terminate(&mut self, id: SessionId) -> Result<()> {
-        let sess = self
-            .sessions
-            .get(&id)
+        let sess = self.sessions.get(&id)
             .ok_or_else(|| anyhow::anyhow!("session {} not found", id))?;
         kill_session_cgroup(id, sess.uid)?;
         self.close(id)
@@ -271,11 +227,7 @@ fn create_session_scope(id: SessionId, uid: u32, leader_pid: u32) -> Result<()> 
         uid, id
     );
     if let Err(e) = fs::create_dir_all(&scope_path) {
-        log::debug!(
-            "session scope mkdir {}: {} (cgroup v2 may not be writable — non-fatal)",
-            scope_path,
-            e
-        );
+        log::debug!("session scope mkdir {}: {} (cgroup v2 may not be writable — non-fatal)", scope_path, e);
         return Ok(());
     }
 
@@ -302,25 +254,19 @@ fn remove_session_scope(id: SessionId) {
 }
 
 #[allow(dead_code)]
-fn kill_session_cgroup(id: SessionId, uid: u32) -> Result<()> {
+    fn kill_session_cgroup(id: SessionId, uid: u32) -> Result<()> {
     let scope_path = format!(
         "/sys/fs/cgroup/user.slice/user-{}.slice/session-{}.scope",
         uid, id
     );
     // cgroup.kill (Linux 5.14+)
     if let Err(e) = fs::write(format!("{}/cgroup.kill", scope_path), "1") {
-        log::debug!(
-            "cgroup.kill session {}: {} (fallback to SIGTERM cgroup.procs)",
-            id,
-            e
-        );
+        log::debug!("cgroup.kill session {}: {} (fallback to SIGTERM cgroup.procs)", id, e);
         // Fallback: read cgroup.procs and send SIGTERM to each PID
         if let Ok(procs) = fs::read_to_string(format!("{}/cgroup.procs", scope_path)) {
             for line in procs.lines() {
                 if let Ok(pid) = line.trim().parse::<i32>() {
-                    unsafe {
-                        libc::kill(pid, libc::SIGTERM);
-                    }
+                    unsafe { libc::kill(pid, libc::SIGTERM); }
                 }
             }
         }
@@ -330,12 +276,10 @@ fn kill_session_cgroup(id: SessionId, uid: u32) -> Result<()> {
 
 fn glob_dirs(parent: &str) -> Vec<String> {
     fs::read_dir(parent)
-        .map(|e| {
-            e.flatten()
-                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                .map(|e| e.path().to_string_lossy().into_owned())
-                .collect()
-        })
+        .map(|e| e.flatten()
+            .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+            .map(|e| e.path().to_string_lossy().into_owned())
+            .collect())
         .unwrap_or_default()
 }
 

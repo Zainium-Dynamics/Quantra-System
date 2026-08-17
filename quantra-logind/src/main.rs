@@ -22,15 +22,17 @@ use std::sync::{Arc, Mutex};
 use types::LogindConfig;
 use user::UserManager;
 
-pub const SOCKET_PATH: &str = "/run/quantra-logind/control";
+pub const SOCKET_PATH:      &str = "/run/quantra-logind/control";
 pub const RUNTIME_DIR_BASE: &str = "/run/user";
-pub const CONFIG_PATH: &str = "/overlayer/syshub/etc/quantra-system/logind.conf";
-pub const LINGER_DIR: &str = "/overlayer/syshub/var/lib/quantra-logind/linger";
+pub const CONFIG_PATH:      &str = "/overlayer/syshub/etc/quantra-system/logind.conf";
+pub const LINGER_DIR:       &str = "/var/lib/quantra-logind/linger";
 
 fn main() -> ! {
     setup_logging();
     log::info!("quantra-logind v{} starting", env!("CARGO_PKG_VERSION"));
-    log::info!("Compatible: login1 API | COSMIC | portals | elevate-pam (no classic pam.d/libpam)");
+    log::info!(
+        "Compatible: login1 API | COSMIC | portals | elevate-pam (no classic pam.d/libpam)"
+    );
 
     if let Err(e) = run() {
         log::error!("fatal: {:#}", e);
@@ -45,22 +47,26 @@ fn run() -> Result<()> {
     log::debug!("Config loaded from {}", CONFIG_PATH);
 
     // ── Runtime directories ───────────────────────────────────────────────────
-    fs::create_dir_all("/run/quantra-logind").context("create /run/quantra-logind")?;
-    fs::create_dir_all(RUNTIME_DIR_BASE).context("create /run/user")?;
-    fs::create_dir_all(LINGER_DIR).context("create linger dir")?;
+    fs::create_dir_all("/run/quantra-logind")
+        .context("create /run/quantra-logind")?;
+    fs::create_dir_all(RUNTIME_DIR_BASE)
+        .context("create /run/user")?;
+    fs::create_dir_all(LINGER_DIR)
+        .context("create linger dir")?;
 
     // ── utmp boot record ─────────────────────────────────────────────────────
     utmp::write_boot_time();
 
     // ── Shared state ──────────────────────────────────────────────────────────
-    let sessions = Arc::new(Mutex::new(SessionManager::new()));
-    let users = Arc::new(Mutex::new(UserManager::new()));
-    let seats = Arc::new(Mutex::new(SeatManager::new()));
+    let sessions   = Arc::new(Mutex::new(SessionManager::new()));
+    let users      = Arc::new(Mutex::new(UserManager::new()));
+    let seats      = Arc::new(Mutex::new(SeatManager::new()));
     let inhibitors = Arc::new(Mutex::new(InhibitorManager::new()));
-    let power = Arc::new(Mutex::new(PowerManager::new(config.clone())));
+    let power      = Arc::new(Mutex::new(PowerManager::new(config.clone())));
 
     // ── Seat detection ────────────────────────────────────────────────────────
-    seats.lock().unwrap().detect().context("seat detection")?;
+    seats.lock().unwrap().detect()
+        .context("seat detection")?;
 
     // ── Restore linger state ──────────────────────────────────────────────────
     users.lock().unwrap().load_linger_state();
@@ -78,7 +84,11 @@ fn run() -> Result<()> {
     dbus_bridge::start_dbus_bridge();
 
     // ── ACPI event handler ────────────────────────────────────────────────────
-    power::start_acpi_handler(config.clone(), Arc::clone(&power), Arc::clone(&inhibitors));
+    power::start_acpi_handler(
+        config.clone(),
+        Arc::clone(&power),
+        Arc::clone(&inhibitors),
+    );
 
     // ── IdleAction enforcement timer ──────────────────────────────────────────
     power::start_idle_timer(
@@ -90,8 +100,8 @@ fn run() -> Result<()> {
 
     // ── Control socket ────────────────────────────────────────────────────────
     let _ = fs::remove_file(SOCKET_PATH);
-    let listener =
-        UnixListener::bind(SOCKET_PATH).with_context(|| format!("bind {}", SOCKET_PATH))?;
+    let listener = UnixListener::bind(SOCKET_PATH)
+        .with_context(|| format!("bind {}", SOCKET_PATH))?;
     fs::set_permissions(SOCKET_PATH, fs::Permissions::from_mode(0o660)).ok();
 
     log::info!("Socket: {}", SOCKET_PATH);
@@ -102,7 +112,9 @@ fn run() -> Result<()> {
     notify_ready();
 
     // ── Block forever ─────────────────────────────────────────────────────────
-    ControlServer::new(listener, sessions, users, seats, inhibitors, power, config).run()
+    ControlServer::new(
+        listener, sessions, users, seats, inhibitors, power, config,
+    ).run()
 }
 
 fn notify_ready() {
