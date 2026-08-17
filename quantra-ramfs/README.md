@@ -1,9 +1,8 @@
 # quantra-ramfs — Zainium OS Stage-1 Initramfs Orchestrator
 
-**Author:** Ali Zain  
 **Version:** 6.0.0  
 **Language:** Rust 2024 (100% — zero shell scripts in the boot path)  
-**Target:** `x86_64-zainium-linux-musl` (static binary, zero runtime dependencies)  
+**Target:** `x86_64-unknown-linux-musl` (matches the pinned target in `quantra/.cargo/config.toml`; this crate has no per-crate `.cargo/config.toml` of its own, so pass `--target x86_64-unknown-linux-musl` explicitly)  
 **MSRV:** 1.87
 
 ---
@@ -176,14 +175,10 @@ No other dependencies. The binary is statically linked against musl libc.
 ## Build
 
 ```sh
-# Cross-compile for Zainium target
-cargo build --release --target x86_64-zainium-linux-musl
+cargo build --release --target x86_64-unknown-linux-musl
 
-# Output
-target/x86_64-zainium-linux-musl/release/quantra-ramfs
-
-# Strip for initramfs (reduces to ~60–80 KB)
-x86_64-zainium-linux-musl-strip target/.../quantra-ramfs
+# Output (already stripped -- the workspace [profile.release] sets strip = true)
+target/x86_64-unknown-linux-musl/release/quantra-ramfs
 ```
 
 ---

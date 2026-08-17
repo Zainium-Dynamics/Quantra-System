@@ -1,17 +1,12 @@
-# quantra-net — Universal Network Management Stack
+# quantra-net — network management stack for Zainium OS
 
-> A fast, memory-safe, privileged network daemon and CLI client for Linux.
+**Version:** 6.0.0 · **License:** MIT
 
-**Author:** Ali Zain <alizain.x404@gmail.com>  
-**Version:** 6.0.0  
-**Language:** Rust (100% memory-safe)  
-**License:** MIT  
-
----
-
-## What Is quantra-net?
-
-The `quantra-net` workspace provides a highly secure, zero-bloat networking stack designed to replace legacy network managers. It separates the execution of privileged network operations (daemon) from user-facing interactions (CLI), communicating exclusively over a hardened Unix domain socket using a length-prefixed JSON protocol.
+A privileged network daemon (`quantra-netd`) plus a CLI client
+(`quantra-net`) that talks to it over a Unix domain socket using a
+length-prefixed JSON protocol. Replaces NetworkManager/systemd-networkd on
+Zainium — link/route/DHCP/WireGuard are handled natively via `rtnetlink`,
+not shelled out to `ip`/`wg-quick`.
 
 ### Workspace Layout
 
@@ -50,16 +45,19 @@ flowchart LR
 
 ## CLI Command Surface (`quantra-net`)
 
-The client provides a comprehensive surface for system network administration:
+Top-level subcommands (`quantra-net --help` is authoritative; this
+mirrors the `Commands` enum in `quantra-net/src/main.rs`):
 
-- **State & Monitoring:** `status`, `scan`, `monitor`, `watch`
+- **State & Monitoring:** `status`, `scan`, `monitor [iface]`, `watch --interface <iface>`
+- **Power/perf mode:** `mode get`, `mode set <balanced|performance|powersave>`
 - **Link Management:** `link up`, `down`, `restart`, `add`, `remove`, `dhcp`, `renew`, `release`
 - **Routing:** `route add`, `del`, `show`
 - **Wireless (WiFi):** `wifi scan`, `connect`, `disconnect`, `saved`, `forget`, `autoconnect`, `diagnose`
 - **Quality of Service:** `quality monitor`, `speed`, `bandwidth`
 - **VPN:** `vpn create`, `up`, `down`, `status`, `show`, `killswitch`
 - **Firewall:** `firewall status`, `preset`, `allow`, `block`, `zone`, `nat`
-- **Configuration:** `config save`, `load`, `show`, `setup`, `diagnose`
+- **Config persistence:** `config save`, `config load`, `config show`
+- **First-boot / troubleshooting:** `setup` (DHCP + saved WiFi autoconfig), `diagnose [iface]`
 
 **Examples:**
 ```bash
@@ -74,9 +72,8 @@ quantra-net quality monitor eth0 --duration 10
 
 ## Security and Hardening
 
-The `quantra-netd` daemon is engineered with a strict, defense-in-depth security model:
-
-- **Process Hardening:** - Sets `PR_SET_NO_NEW_PRIVS` to prevent privilege escalation.
+- **Process Hardening:**
+  - Sets `PR_SET_NO_NEW_PRIVS` to prevent privilege escalation.
   - Sets `PR_SET_DUMPABLE` to `0` to prevent memory dumping.
 - **Socket Permissions:**
   - Parent directory strictly set to `0700`.
