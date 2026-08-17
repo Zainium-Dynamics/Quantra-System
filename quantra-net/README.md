@@ -95,13 +95,19 @@ The `quantra-netd` daemon is engineered with a strict, defense-in-depth security
 Link/route/DHCP/WireGuard management is all native — `netlink.rs`,
 `routing.rs`, `dhcp.rs`, and `wireguard.rs` talk `rtnetlink`/generic
 netlink directly, no external binary involved. What's still shelled out to
-(via `exec.rs`, with `zex infuse <pkg>` install hints on failure):
+falls into two groups, depending on whether the call site goes through
+`exec.rs`'s wrapper:
 
-- `ip` (iproute2) — a handful of remaining call sites (`netlink.rs`, `routing.rs`, `netns.rs`)
-- `iw`, `wpa_supplicant`, `wpa_cli` — WiFi scan/connect (`wifi.rs`)
-- `ping` (iputils) — quality/diagnostics (`quality.rs`)
+Via `exec.rs` (missing-binary errors include a `zex infuse <pkg>` hint):
+- `iw` — WiFi scan/link status (`quality.rs`)
 - `nft` (nftables) — firewall rules (`firewall.rs`)
 - `openvpn` — non-WireGuard VPN (`vpn.rs`)
+
+Called directly via `tokio::process::Command` (no `exec.rs`, so a missing
+binary surfaces as a plain "not found" error with no install hint):
+- `ip` (iproute2) — remaining call sites (`netlink.rs`, `routing.rs`, `netns.rs`)
+- `wpa_supplicant`, `wpa_cli` — WiFi connect (`wifi.rs`)
+- `ping` (iputils) — quality/diagnostics (`quality.rs`)
 - `unshare`, `nsenter`, `umount` — network namespaces (`netns.rs`)
 
 ---

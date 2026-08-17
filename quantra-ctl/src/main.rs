@@ -227,7 +227,10 @@ enum Cmd {
     /// the control socket, so it works even if quantra isn't running (e.g.
     /// inspecting a mounted install target).
     Env {
-        /// Root to resolve against (default: the live system)
+        /// Directory containing oxienv.toml (default: the live system's
+        /// /overlayer/syshub/etc). Not a mountpoint/system root — to inspect
+        /// a mounted install target, append its syshub etc path, e.g.
+        /// /mnt/overlayer/syshub/etc, not just /mnt.
         #[arg(long, env = oxidized_environment::ROOT_OVERRIDE_ENV, default_value = SYSHUB_ROOT)]
         root: std::path::PathBuf,
     },

@@ -14,8 +14,9 @@
 /// Instead, PID 1 sets the canonical environment on **itself**, once, before
 /// anything is spawned, resolved from the single schema `oxidized-environment`
 /// owns (see that crate's docs for the full design — one file, `oxienv.toml`,
-/// also readable by `zainium-installer` and `quantra-ctl` without linking
-/// Rust at all). Every child process inherits it for free through normal
+/// a plain TOML format any tool could parse, though today `zainium-installer`
+/// and `quantra-ctl` both consume it the same way PID 1 does: by linking the
+/// `oxidized-environment-core` crate). Every child process inherits it for free through normal
 /// `fork`/`exec` unless a spawn path deliberately builds an isolated
 /// environment (see `process.rs::BASE_PATH` — background services still get
 /// a minimal, explicit env on purpose, for isolation, not because the full
