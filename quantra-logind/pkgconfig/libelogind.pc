@@ -1,0 +1,9 @@
+prefix=/overlayer/syshub
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libelogind
+Description: elogind-compat alias for qlogind (Zainium OS, not real elogind)
+Version: 255.4
+Libs: -L${libdir} -lqlogind
+Cflags: -I${includedir}/elogind
