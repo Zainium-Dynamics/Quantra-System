@@ -1,6 +1,7 @@
 mod control;
 mod dbus_bridge;
 mod elevate_session;
+mod hostname_timedate_locale;
 mod inhibitor;
 mod power;
 mod seat;
