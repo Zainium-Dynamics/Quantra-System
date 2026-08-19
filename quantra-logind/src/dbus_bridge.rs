@@ -19,6 +19,7 @@ use tokio::io::AsyncReadExt;
 use oxibus_client::{BoxFuture, Connection, Interface, MethodError, MethodResult, ObjectServer};
 use oxibus_core::{Address, ArrayValue, ObjectPath, Type, Value};
 
+use crate::hostname_timedate_locale::{Hostname1, Locale1, Timedate1};
 use crate::types::{InhibitMode, InhibitWhat};
 
 const LOGIND_SOCKET: &str = "/run/quantra-logind/control";
@@ -157,6 +158,12 @@ async fn run_dbus_bridge() -> Result<()> {
         log::warn!("D-Bus bridge: failed to register initial objects: {:?}", e);
     }
 
+    // hostname1 / timedate1 / locale1 -- separate bus names, same connection.
+    // Each gets its own request_name(); a failure here (name already taken by
+    // a real systemd-hostnamed etc. on a non-Zainium test box) is logged and
+    // skipped, not fatal to the login1 bridge.
+    register_extra_managers(&conn, server).await;
+
     // Start subscription loop
     let conn_cloned = conn.clone();
     let server_cloned = server.clone();
@@ -170,6 +177,29 @@ async fn run_dbus_bridge() -> Result<()> {
     let mut sig_rx = conn.subscribe_signals();
     loop {
         let _ = sig_rx.recv().await;
+    }
+}
+
+/// Claims org.freedesktop.hostname1/timedate1/locale1 on the same
+/// connection login1 is already on, and registers each interface's
+/// manager object at its own root path (matching real
+/// hostnamed/timedated/localed layout: one object, no sub-tree).
+async fn register_extra_managers(conn: &Connection, server: &Arc<ObjectServer>) {
+    let managers: [(&str, &str, Arc<dyn Interface>); 3] = [
+        ("org.freedesktop.hostname1", "/org/freedesktop/hostname1", Arc::new(Hostname1)),
+        ("org.freedesktop.timedate1", "/org/freedesktop/timedate1", Arc::new(Timedate1)),
+        ("org.freedesktop.locale1", "/org/freedesktop/locale1", Arc::new(Locale1)),
+    ];
+
+    for (bus_name, path, iface) in managers {
+        if let Err(e) = conn.request_name(bus_name, 4).await {
+            log::warn!("D-Bus bridge: could not claim {bus_name}: {:?} (skipping)", e);
+            continue;
+        }
+        let Ok(op) = ObjectPath::new(path) else { continue };
+        server.register(&op, iface);
+        register_helpers(server, &op);
+        log::info!("D-Bus bridge: claimed {bus_name}");
     }
 }
 
